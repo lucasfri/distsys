@@ -4,6 +4,8 @@ import errno
 import sys
 from tkinter import *
 from tkinter import messagebox
+from time import ctime
+
 
 from threading import Thread
 
@@ -26,6 +28,7 @@ PORT = 5555
 def send():
     username = name_input.get()
     message = message_input.get()
+    time = ctime()
     if message == '[exit]':
         message = format_message(username, 'Signing out')
         client_socket.send(message.encode('utf-8'))
@@ -33,7 +36,7 @@ def send():
         client_socket.close()
         sys.exit()
     elif message:
-        print_message(f'\n{username} > {message}')
+        print_message(f'\n{username} on {time} > {message}')
         formatted_message = format_message(username, message).encode('utf-8')
         client_socket.send(formatted_message)
         message_input.delete(0, END)
