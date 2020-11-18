@@ -1,72 +1,101 @@
-'''
-Created on 16.11.2020
+import sys
+import time
+import socket, select
+import json
 
-@author: lucas.fritzsche
-'''
+# ====================================================================================
+# ==========================     SERVER     =========================================
+# ====================================================================================
+class Server:
+    def __init__(self, n, members):
+        print("Server init.")
+        self.node = n
+        self.nodes = map(lambda x: x['ip'], members)
+        self.ip = self.node.nodes_node.ip
+        self.ping_all()
 
-import select
-import socket
+        # clients = [{ip: node_ip, clients: []}]
+        self.clients = []
 
-LENGTH_HEADER_SIZE = 8
-USER_HEADER_SIZE = 16
+    def parse(self, message, socket):
+        if message['type'] == "node-update":
+            index = [i for i, x in enumerate(self.clients) if x['ip'] == self.get_socket_ip(socket)]
+            if not index:
+                node = {
+                    'ip': self.get_socket_ip(socket),
+                    'clients': message['clients']
+                }
+                self.clients.append(node)
 
+            else:
+                self.clients[index[0]]['clients'] = message['clients']
 
-def format_message(username, message):
-    if not message:
-        return None
-    length_header = f'{len(message):<{LENGTH_HEADER_SIZE}}'
-    user_header = f'{username:<{USER_HEADER_SIZE}}'
-    return f'{length_header}{user_header}{message}'
+            self.send_node_update_ack(self.get_socket_ip(socket))
 
+            return
 
-IP = '127.0.0.1'
-PORT = 5555
+        if message['type'] == "node-bye":
+            index = [i for i, x in enumerate(self.clients) if x['ip'] == self.get_socket_ip(socket)]
+            if index:
+                del self.clients[index[0]]
 
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_socket.bind((IP, PORT))
-server_socket.listen(10)
-print (f'Listening on {IP}:{PORT}')
-all_sockets = [server_socket]
+            return
 
+        if message['type'] == "node-down":
+            result = self.send_ping(message['ip'])
+            # node not responding, it might be down, so remove it
+            if not result:
+                index = [i for i, x in enumerate(self.clients) if x['ip'] == message['ip']]
+                if index:
+                    del self.clients[index[0]]
 
-def receive(client_socket):
-    size_header = client_socket.recv(LENGTH_HEADER_SIZE)
-    if not size_header:
-        return None
-    size_header = size_header.decode('utf-8')
-    message_size = int(size_header.strip())
+            return
 
-    user_header = client_socket.recv(USER_HEADER_SIZE).decode('utf-8')
-    user = user_header.strip()        
-    message = client_socket.recv(message_size).decode('utf-8')
-    print (f'{user} > {message}')    
-    return f'{size_header}{user_header}{message}'
+        if message['type'] == "get-clients":
+            self.send_clients_list(self.get_socket_ip(socket))
+            return
 
+    def send_ping(self, ip):
+        message = {
+            'type': "ping",
+            'elNo': self.node.nodes_node.election_number
+        }
+        return self.node.nodes_node.send(message, ip)
 
-def broadcast(sender, message):
-    for socket in all_sockets: 
-        if socket != sender and socket != server_socket: 
-            socket.send(message.encode('utf-8'))
+    def send_node_update_ack(self, ip):
+        message = {
+            "type": "node-update-ack"
+        }
+        self.node.nodes_node.send(message, ip)
 
-            
-while True:
-    read_sockets, _, error_sockets = select.select(all_sockets, [], all_sockets)        
-    for socket in read_sockets:
-        if socket == server_socket: 
-            client_socket, client_address = server_socket.accept()            
-            all_sockets.append(client_socket)
-            print(f'Established connection to {client_address[0]}:{client_address[1]}')
-        else:
-            try:
-                message = receive(socket)
-                if not message:
-                    print(f'{client_socket.getpeername()[0]}:{client_socket.getpeername()[1]} closed the connection')
-                    all_sockets.remove(socket)
-                    continue
-                broadcast(socket, message)
-            except ConnectionResetError as e:
-                all_sockets.remove(socket)
-                print('Client forcefully closed the connection')
+    def send_clients_list(self, ip):
+        all_list = []
+        for node in self.clients:
+            list = []
+            for c in node['clients']:
+                tmp = c
+                tmp['node'] = node['ip']
+                list.append(tmp)
 
-    for error_socket in error_sockets:
-        all_sockets.remove(error_socket)
+            all_list += list
+
+        message = {
+            'type': "clients-list",
+            'clients': all_list
+        }
+        self.node.nodes_node.send(message, ip)
+
+    def ping_all(self):
+        for ip in self.nodes:
+            #if ip != self.ip:
+                self.send_ping(ip)
+
+    def get_socket_ip(self, socket):
+        if socket == self.node.nodes_node.socket:
+            return self.ip
+
+        result = socket.getpeername()[0]
+        if result == self.ip:
+            result = socket.getsockname()[0]
+
+        return result

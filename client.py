@@ -1,113 +1,186 @@
-import socket
-import select
-import errno
 import sys
-from tkinter import *
-from tkinter import messagebox
-from time import ctime
+import time
+import uuid
+import socket, select
+import json
+import atexit
+
+HOST = "192.168.2.104"
+PORT = 50000
+TIMEOUT = 2
+BUFFER_SIZE = 1024
+
+class Client:
+    def __init__(self, name):
+        self.running = True
+
+        self.id = str(uuid.uuid4())
+        self.name = name
+        self.clients = []
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.settimeout(TIMEOUT)
+
+        self.register()
+        print("get-clients || send <number> <message> || exit")
+        print_prompt()
+        self.events_loop()
+        atexit.register(self.unregister)
+
+    def events_loop(self):
+        socket_list = [sys.stdin, self.socket]
+        while self.running:
+            sys.stdout.flush()
+            read_sockets, write_sockets, error_sockets = select.select(socket_list , [], [], 1)
+
+            for s in read_sockets:
+                #incoming message from remote server
+                if s == self.socket:
+                    data = s.recv(BUFFER_SIZE)
+                    if not data:
+                        print('Disconnected from node.')
+                        self.unregister()
+                    else :
+                        resp = json.loads(data.decode('ascii'))
+                        self.parse_response(resp)
+
+                #user entered a message
+                else :
+                    cmd = sys.stdin.readline()
+                    self.parse_command(cmd)
+
+    def send(self, message):
+        #print("Sending message:", message)
+        print_prompt()
+
+        try:
+            self.socket.sendall(json.dumps(message).encode("ascii"))
+        except socket.error as serr:
+            print(serr.strerror, serr.errno)
+            self.unregister()
+
+    def parse_command(self, cmd):
+        cmd = cmd.rstrip().split(" ")
+
+        if cmd[0] == "get-clients":
+            self.get_clients_list()
+
+        if cmd[0] == "exit":
+            self.unregister()
+
+        if cmd[0] == "send":
+            self.send_message(int(cmd[1]), " ".join(cmd[2:]))
+
+    def parse_response(self, resp):
+        if resp['type'] == "clients-list":
+            self.received_clients_list(resp['clients'])
+            return
+
+        if resp['type'] == "message":
+            self.received_message(resp)
+            return
+
+        if resp['type'] == "message-ack":
+            return
+
+        if resp['type'] == "message-fail":
+            number =[i for i, x in enumerate(self.clients) if x['id'] == resp['client-from']['id']]
+            if number:
+                print("\nMessage sent by you to", resp['client-from']['name'], "(", number[0] ,") failed to arrive. Probably client is down.")
+                print_prompt()
+
+            return
+
+    # ------------------ registration ---------------------------
+    def register(self):
+        try:
+            self.socket.connect((HOST, PORT))
+            message = {
+                "type": "connect",
+                "id": self.id,
+                "name": self.name
+            }
+            self.send(message)
+
+        except socket.error as serr:
+            print("Connection to the node could not be established.")
+            self.unregister()
+
+    def unregister(self):
+        self.running = False
+        self.socket.close()
+
+        try:
+            sys.exit(0)
+        except:
+            print("Exiting.")
+
+    # ------------------ commands ---------------------------
+    def get_clients_list(self):
+        message = {
+            "type": "get-clients"
+        }
+        self.send(message)
+
+    def send_message(self, client_number, text):
+        if client_number < 0 or client_number >= len(self.clients):
+            print("Wrong client number.")
+            print_prompt()
+            return
+
+        client_id = self.clients[client_number]['id']
+        client_name = self.clients[client_number]['name']
+
+        message = {
+            "type": 'message',
+            "client-from": {
+                "id": self.id,
+                "name": self.name
+            },
+            "client-to": {
+                "id": client_id,
+                "name": client_name
+            },
+            "message": text,
+            "timestamp": get_timestamp()
+        }
+        self.send(message)
+
+        print("Message sent to", client_name, "(", client_number ,"):", text)
+        print_prompt()
+
+    # ------------------ responses ---------------------------
+    def received_message(self, message):
+        number =[i for i, x in enumerate(self.clients) if x['id'] == message['client-from']['id']]
+        if not number:
+            print("\nMessage from", message['client-from']['name'], ":", message['message'])
+        else:
+            print("\nMessage from", message['client-from']['name'], "(", number ,"):", message['message'])
+
+        print_prompt()
+
+    def received_clients_list(self, list):
+        self.clients = list
+
+        # remove myself from list of available clients
+        index = [i for i, x in enumerate(self.clients) if x['id'] == self.id][0]
+        del self.clients[index]
+
+        print("\nList of available clients:")
+        for i, client in enumerate(self.clients):
+            print("  " + str(i) + ". " + client['name'])
+
+        print_prompt()
 
 
-from threading import Thread
+def get_timestamp():
+    return int(round(time.time() * 1000))
 
-LENGTH_HEADER_SIZE = 8
-USER_HEADER_SIZE = 16
+def print_prompt():
+    sys.stdout.write("cmd>")
+    sys.stdout.flush()
 
+if len(sys.argv) != 2:
+    print("Proper script call: python3 client.py your_name")
+    exit(1)
 
-def format_message(username, message):
-    if not message:
-        return None
-    length_header = f'{len(message):<{LENGTH_HEADER_SIZE}}'
-    user_header = f'{username:<{USER_HEADER_SIZE}}'
-    return f'{length_header}{user_header}{message}'
-
-        
-IP = '127.0.0.1'
-PORT = 5555
-
-
-def send():
-    username = name_input.get()
-    message = message_input.get()
-    time = ctime()
-    if message == '[exit]':
-        message = format_message(username, 'Signing out')
-        client_socket.send(message.encode('utf-8'))
-        print_message('\nSigned out')
-        client_socket.close()
-        sys.exit()
-    elif message:
-        print_message(f'\n{username} on {time} > {message}')
-        formatted_message = format_message(username, message).encode('utf-8')
-        client_socket.send(formatted_message)
-        message_input.delete(0, END)
-
-
-def receive():
-    try:
-        message_size = client_socket.recv(LENGTH_HEADER_SIZE)
-        if message_size: 
-            message_size = int(message_size.decode('utf-8').strip())
-            sender = client_socket.recv(USER_HEADER_SIZE).decode('utf-8').strip()
-            message = client_socket.recv(message_size).decode('utf-8')
-            print_message(f'\n{sender} > {message}')
-        
-    except IOError as e:
-        if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
-            print('Encountered error while reading', e)
-            client_socket.close()
-            sys.exit()
-    except Exception as e:
-        client_socket.close()
-        sys.exit()
-
-
-def print_message(message):
-    chat_log.configure(state=NORMAL)
-    chat_log.insert(END, message)
-    chat_log.configure(state=DISABLED)
-
-    
-def loop_receive():
-    while True:
-        receive()
-
-
-def lock_username():
-    if name_input.get():
-        message_input.configure(state=NORMAL)
-        send_button.configure(state=NORMAL)
-        name_input.configure(state=DISABLED)
-    else:
-        messagebox.showinfo('Error', 'Please enter a user name!')
-
-
-client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_socket.connect((IP, PORT)) 
-client_socket.setblocking(False)
-
-window = Tk(className='Chat program')
-name_label = Label(window, text='Name')
-name_label.grid(row=0, column=0)
-
-name_input = Entry(window, width=100)
-name_input.grid(row=0, column=1)
-
-name_confirm_button = Button(window, width=20, text='Confirm', bg='white', command=lock_username)
-name_confirm_button.grid(row=0, column=2)
-
-chat_log = Text(window, width=100, height=20, state=DISABLED)
-chat_log.grid(row=1, column=0, columnspan=3)
-
-message_label = Label(window, text='Message')
-message_label.grid(row=2, column=0)
-
-message_input = Entry(window, width=100, state=DISABLED)
-message_input.grid(row=2, column=1)
-
-send_button = Button(window, width=20, text='Send', bg='white', command=send, state=DISABLED)
-send_button.grid(row=2, column=2)
-
-receive_thread = Thread(target=loop_receive)
-receive_thread.start()
-
-window.mainloop()
+client = Client(sys.argv[1])
