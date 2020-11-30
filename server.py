@@ -1,101 +1,61 @@
+import threading
+import socket
 import sys
-import time
-import socket, select
-import json
+from test.test_decimal import file
 
-# ====================================================================================
-# ==========================     SERVER     =========================================
-# ====================================================================================
-class Server:
-    def __init__(self, n, members):
-        print("Server init.")
-        self.node = n
-        self.nodes = map(lambda x: x['ip'], members)
-        self.ip = self.node.nodes_node.ip
-        self.ping_all()
+# Create a TCP/IP socket
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # clients = [{ip: node_ip, clients: []}]
-        self.clients = []
+# Bind the socket to the address given on the command line
+server_name = socket.gethostbyname(socket.gethostname())
+server_address = (server_name, 10000)
+print('Server gestartet auf %s mit Port %s' % server_address)
+server.bind(server_address)
+server.listen(1)
 
-    def parse(self, message, socket):
-        if message['type'] == "node-update":
-            index = [i for i, x in enumerate(self.clients) if x['ip'] == self.get_socket_ip(socket)]
-            if not index:
-                node = {
-                    'ip': self.get_socket_ip(socket),
-                    'clients': message['clients']
-                }
-                self.clients.append(node)
+clients = []
+nicknames = []
 
-            else:
-                self.clients[index[0]]['clients'] = message['clients']
+def broadcast(message): #um Nachrichten  zu den Clients zu senden
+    for client in clients:
+        client.send(message)
 
-            self.send_node_update_ack(self.get_socket_ip(socket))
+def handle(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
+    while True:
+        try:
+            message = client.recv(1024) #Nachricht empfangen
+            broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
-            return
+        
+        except: #Sofern der Client keine Nachricht empfaengt
+            index = clients.index(client)
+            clients.remove(client) #Client wird von der Clientlist entfernt
+            client.close()
+            nickname = nicknames[index]
+            broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
+            nicknames.remove(nickname)
+            break
 
-        if message['type'] == "node-bye":
-            index = [i for i, x in enumerate(self.clients) if x['ip'] == self.get_socket_ip(socket)]
-            if index:
-                del self.clients[index[0]]
+def receive():
+    while True:
+        # Die Verbindung akzeptieren
+        client,server_address = server.accept()
+        print("Verbunden mit {}".format(str(server_address)))
 
-            return
+        # Anforderung des Benutzernamens und Speicherung dessen
+        client.send('NICK'.encode('ascii'))
+        nickname = client.recv(1024).decode('ascii')
+        nicknames.append(nickname)
+        clients.append(client)
 
-        if message['type'] == "node-down":
-            result = self.send_ping(message['ip'])
-            # node not responding, it might be down, so remove it
-            if not result:
-                index = [i for i, x in enumerate(self.clients) if x['ip'] == message['ip']]
-                if index:
-                    del self.clients[index[0]]
+        # Benutzername mitteilen und broadcasten
+        print("Der Benutzername ist {}".format(nickname))
+        broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
+        client.send('Mit dem Server verbunden!'.encode('ascii'))
 
-            return
 
-        if message['type'] == "get-clients":
-            self.send_clients_list(self.get_socket_ip(socket))
-            return
-
-    def send_ping(self, ip):
-        message = {
-            'type': "ping",
-            'elNo': self.node.nodes_node.election_number
-        }
-        return self.node.nodes_node.send(message, ip)
-
-    def send_node_update_ack(self, ip):
-        message = {
-            "type": "node-update-ack"
-        }
-        self.node.nodes_node.send(message, ip)
-
-    def send_clients_list(self, ip):
-        all_list = []
-        for node in self.clients:
-            list = []
-            for c in node['clients']:
-                tmp = c
-                tmp['node'] = node['ip']
-                list.append(tmp)
-
-            all_list += list
-
-        message = {
-            'type': "clients-list",
-            'clients': all_list
-        }
-        self.node.nodes_node.send(message, ip)
-
-    def ping_all(self):
-        for ip in self.nodes:
-            #if ip != self.ip:
-                self.send_ping(ip)
-
-    def get_socket_ip(self, socket):
-        if socket == self.node.nodes_node.socket:
-            return self.ip
-
-        result = socket.getpeername()[0]
-        if result == self.ip:
-            result = socket.getsockname()[0]
-
-        return result
+        # Start Handling Thread For Client
+        thread = threading.Thread(target=handle, args=(client,))
+        thread.start()
+                
+receive()
