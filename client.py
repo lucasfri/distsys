@@ -1,6 +1,7 @@
 import socket
 import threading
 import sys
+
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
