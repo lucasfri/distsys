@@ -8,6 +8,7 @@ from datetime import datetime
 
 #khgjh44
 # Listening port
+Hallo Tbi
 BROADCAST_PORT = 5972
 # Local host information
 MY_HOST = socket.gethostname()

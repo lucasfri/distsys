@@ -5,7 +5,7 @@ import socket
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
 #nickname = input("Wie lautet ihr Benutzername? ")
-#gjhgjh
+Finale änderung
 
 #Heyhirt ist Lucas
 # Verbindung zum Server
@@ -18,8 +18,6 @@ def broadcast(ip, port):
         print("Sending ", str.encode(MY_IP))
    # broadcast_socket.close()
     
-
-Test Tobi
 #sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #server_address = (sys.argv[1], 10000)
 #print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % server_address)
