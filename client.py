@@ -5,7 +5,7 @@ import socket
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
 #nickname = input("Wie lautet ihr Benutzername? ")
-
+#gjhgjh
 # Verbindung zum Server
 def broadcast(ip, port):
     # Create a UDP socket
