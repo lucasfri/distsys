@@ -66,4 +66,5 @@ if __name__ == '__main__':
     # Send broadcast message
     broadcast(BROADCAST_IP, BROADCAST_PORT)
     
+#broadcast Tobi: 192.168.0.255
 
