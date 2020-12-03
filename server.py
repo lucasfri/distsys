@@ -6,6 +6,8 @@ from datetime import datetime
 #hallo hier ist sonja
     # Create a TCP/IP socket
 #kk
+
+#khgjh
 # Listening port
 BROADCAST_PORT = 5972
 # Local host information
