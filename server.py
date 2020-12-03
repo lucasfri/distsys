@@ -3,7 +3,7 @@ import socket
 from multiprocessing import Process, Pipe
 from os import getpid
 from datetime import datetime
-
+#hallo hier ist sonja
     # Create a TCP/IP socket
 #kk
 # Listening port
