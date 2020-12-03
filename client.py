@@ -5,7 +5,6 @@ import socket
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
 #nickname = input("Wie lautet ihr Benutzername? ")
-#Finale �nderung
 
 #Heyhirt ist Lucas
 # Verbindung zum Server
