@@ -6,7 +6,6 @@ import socket
 # Nutzernamen auswaehlen
 #nickname = input("Wie lautet ihr Benutzername? ")
 
-#Heyhirt ist Lucas
 # Verbindung zum Server
 def broadcast(ip, port):
     # Create a UDP socket
