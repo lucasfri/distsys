@@ -4,6 +4,43 @@ from multiprocessing import Process, Pipe
 from os import getpid
 from datetime import datetime
 
+    # Create a TCP/IP socket
+#kk
+# Listening port
+BROADCAST_PORT = 5972
+# Local host information
+MY_HOST = socket.gethostname()
+MY_IP = socket.gethostbyname(MY_HOST)
+# Create a UDP socket
+listen_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# Set the socket to broadcast and enable reusing addresses
+listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+# Bind socket to address and port
+listen_socket.bind((MY_IP, BROADCAST_PORT))
+print("Listening to broadcast messages")
+while True:
+    data, addr = listen_socket.recvfrom(1024)
+    if data:
+            print("Received broadcast message:", data.decode())
+
+   
+    #server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    
+    # Enable broadcasting mode
+    # server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+
+        # Bind the socket to the address given on the command line
+#server_name = socket.gethostbyname(socket.gethostname())
+#server_address = (server_name, 10000)
+    
+#print('Server gestartet auf %s mit Port %s' % server_address)
+#server.bind(server_address)
+#server.listen(1)
+
+
+
 #Print local Lamport Timestamp
 def local_time(counter):
     return ' (LAMPORT_TIME={}, LOCAL_TIME={})'.format(counter,
@@ -27,18 +64,6 @@ def recv_message(pipe, pid, counter):
     counter = calc_recv_timestamp(timestamp, counter)
     print('Message received at ' + str(pid)  + local_time(counter))
     return counter
-
-
-    # Create a TCP/IP socket
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-        # Bind the socket to the address given on the command line
-server_name = socket.gethostbyname(socket.gethostname())
-server_address = (server_name, 10000)
-    
-print('Server gestartet auf %s mit Port %s' % server_address)
-server.bind(server_address)
-server.listen(1)
 
 
 clients = []
