@@ -15,7 +15,6 @@ udp_socket.sendto(str.encode(client_name), (broadcast_address, udp_serverport))
 print("Requesting blackboard entrance.")
 
 host_address = udp_socket.recv(buffer)
-print(host_address)
 print("Hostaddress is {}".format(host_address))
 
 udp_socket.close()
@@ -32,4 +31,4 @@ tcp_socket.connect((host_address, tcp_serverport))
 #if est == "Connection established." :
     #receive last 10 messages
 new_entry = input("Eintrag hinzufügen:")
-tcp_socket.sendto(str.encode(new_entry), host_address, tcp_serverport)
+tcp_socket.send(str.encode(new_entry))
