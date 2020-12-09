@@ -1,5 +1,5 @@
 import socket
-broadcast_address = "192.168.0.220"
+broadcast_address = "192.168.2.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
@@ -30,5 +30,7 @@ tcp_socket.connect((host_address, tcp_serverport))
 
 #if est == "Connection established." :
     #receive last 10 messages
-new_entry = input("Eintrag hinzufügen:")
-tcp_socket.send(str.encode(new_entry))
+    
+while True:
+    new_entry = input("Eintrag hinzufuegen:")
+    tcp_socket.send(str.encode(new_entry))

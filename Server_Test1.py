@@ -3,16 +3,15 @@ import socket
 buffer = 1024
 clientdict = {}
 
-
 #UDP connection
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_socket.bind(("192.168.0.220", 1234))
+udp_socket.bind(("192.168.2.85", 1234))
 
-#tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     
     # Enable broadcasting mode
-#tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 print("server up and running...")
 
@@ -23,7 +22,7 @@ clientdict[client_address] = client_name
 print("client request received from client {} on IP {}".format(client_name, client_address))
 print("Establishing connection")
     
-udp_socket.sendto(str.encode("192.168.0.220"), client_address)
+udp_socket.sendto(str.encode("192.168.2.85"), client_address)
 
 udp_socket.close()  #Ansonsten errno 48: address already in use
   

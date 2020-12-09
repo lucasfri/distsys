@@ -4,11 +4,8 @@ from multiprocessing import Process, Pipe
 from os import getpid
 from datetime import datetime
     # Create a TCP/IP socket
-#kk
 
-#khgjh44
 # Listening port
-Hallo Tbi
 BROADCAST_PORT = 5972
 # Local host information
 MY_HOST = socket.gethostname()
