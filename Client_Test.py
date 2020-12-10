@@ -1,5 +1,5 @@
 import socket
-broadcast_address = "192.168.2.255"
+broadcast_address = "255.255.255.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024

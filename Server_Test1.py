@@ -2,27 +2,30 @@
 import socket
 buffer = 1024
 clientdict = {}
+bind_address = "172.29.180.18"
 
 #UDP connection
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_socket.bind(("192.168.2.85", 1234))
+udp_socket.bind((bind_address, 1023))
 
-udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+#udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     
     # Enable broadcasting mode
-udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+#udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-print("server up and running...")
+print("Server up and running...")
 
 #while True:
-print("Waiting for client request...")
+print("Waiting for client request... on {}".format(bind_address))
+
 client_name, client_address = udp_socket.recvfrom(buffer)
 clientdict[client_address] = client_name
+
 print("client request received from client {} on IP {}".format(client_name, client_address))
 print("Establishing connection")
     
-udp_socket.sendto(str.encode("192.168.2.85"), client_address)
+udp_socket.sendto(str.encode(bind_address), client_address) #hier muss noch der port mitgeschickt werden!
 
 udp_socket.close()  #Ansonsten errno 48: address already in use
   
@@ -31,7 +34,7 @@ udp_socket.close()  #Ansonsten errno 48: address already in use
     
 tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     
-tcp_socket.bind(("192.168.0.220", 1235))
+tcp_socket.bind(("192.168.0.221", 1235))
 tcp_socket.listen()
 
 tcp_socket.accept()
