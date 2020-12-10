@@ -1,11 +1,7 @@
 import socket
 broadcast_address = "192.168.0.220"
 udp_serverport = 1234
-<<<<<<< HEAD
 tcp_serverport = 1235
-=======
-tcp_serverport = 1234
->>>>>>> branch 'master' of https://github.com/lucasfri/distsys
 buffer = 1024
 
 #UDP connection
@@ -36,6 +32,7 @@ nickname = input("Wie lautet ihr Benutzername? ")
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #server_address = ("172.29.180.18", 10000)
 #print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % host_address)
+print(host_address)
 
 sock.connect((host_address, tcp_serverport))
 
