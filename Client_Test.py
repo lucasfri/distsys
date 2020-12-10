@@ -1,6 +1,6 @@
 import socket
-broadcast_address = "255.255.255.255"
-udp_serverport = 1234
+broadcast_address = "192.168.2.85"
+udp_serverport = 1000
 tcp_serverport = 1235
 buffer = 1024
 
@@ -10,14 +10,14 @@ udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 client_name = input("Ihr Name?")
 
-
-udp_socket.sendto(str.encode(client_name), (broadcast_address, udp_serverport))
-print("Requesting blackboard entrance.")
+while True:
+    udp_socket.sendto(str.encode(client_name), (broadcast_address, udp_serverport))
+    print("Requesting blackboard entrance.")
 
 host_address = udp_socket.recv(buffer)
 print("Hostaddress is {}".format(host_address))
 
-udp_socket.close()
+#udp_socket.close()
 
 
 #TCP connection
@@ -34,3 +34,5 @@ tcp_socket.connect((host_address, tcp_serverport))
 while True:
     new_entry = input("Eintrag hinzufuegen:")
     tcp_socket.send(str.encode(new_entry))
+    
+    
