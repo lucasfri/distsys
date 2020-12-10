@@ -1,7 +1,7 @@
 import socket
 broadcast_address = "192.168.2.85"
 udp_serverport = 1234
-tcp_serverport = 10000
+tcp_serverport = 1234
 buffer = 1024
 
 
@@ -28,13 +28,12 @@ import sys
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
-#nickname = input("Wie lautet ihr Benutzername? ")
+nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #server_address = ("172.29.180.18", 10000)
 #print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % host_address)
-print(host_address)
 
 sock.connect((host_address, tcp_serverport))
 

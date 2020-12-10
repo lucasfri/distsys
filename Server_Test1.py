@@ -15,16 +15,16 @@ udp_socket.bind(("192.168.2.85", 1234))
 
 print("server up and running...")
 
-#while True:
-print("Waiting for client request...")
-client_name, client_address = udp_socket.recvfrom(buffer)
-clientdict[client_address] = client_name
-print("client request received from client {} on IP {}".format(client_name, client_address))
-print("Establishing connection")
-    
-udp_socket.sendto(str.encode("192.168.2.85"), client_address)
+while True:
+    print("Waiting for client request...")
+    client_name, client_address = udp_socket.recvfrom(buffer)
+    clientdict[client_address] = client_name
+    print("client request received from client {} on IP {}".format(client_name, client_address))
+    print("Establishing connection")
+        
+    udp_socket.sendto(str.encode("192.168.2.85"), client_address)
 
-udp_socket.close()  #Ansonsten errno 48: address already in use
+#udp_socket.close()  #Ansonsten errno 48: address already in use
   
 
 #TCP connection  
@@ -32,18 +32,20 @@ udp_socket.close()  #Ansonsten errno 48: address already in use
 import threading
 import socket
 import sys
-from test.test_decimal import file
 
 # Create a TCP/IP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  
+server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
 # Bind the socket to the address given on the command line
 server_name = "192.168.2.85"
 #server_name = socket.gethostbyname(socket.gethostname())
-server_address = (server_name, 10000)
+server_address = (server_name, 1234)
 print('Server gestartet auf %s mit Port %s' % server_address)
 server.bind(server_address)
-server.listen(1)
+server.listen()
 
 clients = []
 nicknames = []
