@@ -4,7 +4,7 @@ udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
 
-
+#Änderung
 #UDP connection
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -18,7 +18,6 @@ host_address = udp_socket.recv(buffer)
 print("Hostaddress is {}".format(host_address))
 
 udp_socket.close()
-
 
 #TCP connection
 

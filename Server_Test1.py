@@ -2,7 +2,7 @@ import socket
 buffer = 1024
 clientdict = {}
 
-
+#Änderung
 #UDP connection
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -67,6 +67,7 @@ def handle(client): #Fuer jeden Client auf dem Server wird ein eigener handle au
             broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
             nicknames.remove(nickname)
             break
+
 
 def receive():
     while True:
