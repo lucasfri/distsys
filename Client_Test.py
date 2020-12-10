@@ -4,7 +4,6 @@ udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
 
-#Änderung
 #UDP connection
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -27,7 +26,7 @@ import sys
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
-#nickname = input("Wie lautet ihr Benutzername? ")
+nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
