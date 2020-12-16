@@ -1,5 +1,5 @@
 import socket
-broadcast_address = "192.168.2.135"
+broadcast_address = "192.168.0.220"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
@@ -52,17 +52,17 @@ def receive():
             print("Ein Fehler ist aufgetreten!")
             sock.close()
             break
-        
+
 # Nachrichten zum Server senden
 def write():
     while True:
         message = '{}: {}'.format(nickname, input(''))
         sock.send(message.encode('ascii'))
-        
+
 # 2 Threads fuer Zuhoeren und Nachrichten schreiben starten
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
 write_thread = threading.Thread(target=write)
 write_thread.start()
-    
+

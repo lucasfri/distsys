@@ -1,11 +1,7 @@
 import socket
 broadcast_address = "192.168.0.220"
 udp_serverport = 1234
-<<<<<<< HEAD
 tcp_serverport = 1235
-=======
-tcp_serverport = 1234
->>>>>>> branch 'master' of https://github.com/lucasfri/distsys
 buffer = 1024
 
 #UDP connection
