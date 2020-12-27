@@ -1,5 +1,8 @@
 import socket
-broadcast_address = "192.168.0.255"
+import socket
+import threading
+import sys
+broadcast_address = "192.168.0.220"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
@@ -22,9 +25,6 @@ udp_socket.close()
 
 #TCP connection
 
-import socket
-import threading
-import sys
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
