@@ -5,7 +5,7 @@ clientdict = {}
 #UDP connection
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_socket.bind(("192.168.178.29", 1234))
+udp_socket.bind(("192.168.0.220", 1234))
 
 #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 2)
 
@@ -21,9 +21,21 @@ clientdict[client_address] = client_name
 print("client request received from client {} on IP {}".format(client_name, client_address))
 print("Establishing connection")
 
-udp_socket.sendto(str.encode("192.168.178.29"), client_address)
+udp_socket.sendto(str.encode("192.168.0.220"), client_address)
 
     #udp_socket.close()  #Ansonsten errno 48: address already in use
+
+    
+print("server up and running...")
+
+#while True:
+print("Waiting for client request...")    
+client_name, client_address = udp_socket.recvfrom(buffer)
+clientdict[client_address] = client_name
+print("client request received from client {} on IP {}".format(client_name, client_address))
+print("Establishing connection")
+
+udp_socket.sendto(str.encode("192.168.0.220"), client_address)
 
 
 #TCP connection  
@@ -43,7 +55,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 # Bind the socket to the address given on the command line
-server_name = "192.168.178.29"
+server_name = "192.168.0.220"
 #server_name = socket.gethostbyname(socket.gethostname())
 server_address = (server_name, 1235)
 print('Server gestartet auf %s mit Port %s' % server_address)

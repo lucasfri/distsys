@@ -6,27 +6,26 @@ clientdict = {}
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 udp_socket.bind(("192.168.0.220", 1234))
-
-#udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 2)
+udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
     # Enable broadcasting mode
 #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 2)
 
 print("server up and running...")
 
-#while True:
-print("Waiting for client request...")
-client_name, client_address = udp_socket.recvfrom(buffer)
-clientdict[client_address] = client_name
-print("client request received from client {} on IP {}".format(client_name, client_address))
-print("Establishing connection")
-
-udp_socket.sendto(str.encode("192.168.0.220"), client_address)
+while True:
+    print("Waiting for client request...")
+    client_name, client_address = udp_socket.recvfrom(buffer)
+    clientdict[client_address] = client_name
+    print("client request received from client {} on IP {}".format(client_name, client_address))
+    print("Establishing connection")
+    
+    udp_socket.sendto(str.encode("192.168.0.220"), client_address)
 
 #udp_socket.close()  #Ansonsten errno 48: address already in use
 
 
-#TCP connection  
+#TCP connection
 
 import threading
 import socket

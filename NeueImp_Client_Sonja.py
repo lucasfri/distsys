@@ -1,13 +1,15 @@
 import socket
-broadcast_address = "192.168.178.29"
+broadcast_address = "192.168.0.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
 
+
+
 #UDP connection
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-nickname = input("Ihr Name?")
+nickname = input("Bitte beliebige Eingabe um Verbindungsaufbau zu starten.")
 
 
 udp_socket.sendto(str.encode(nickname), (broadcast_address, udp_serverport))

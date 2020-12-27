@@ -8,7 +8,7 @@ nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server_address = ("172.29.180.18", 10000)
+server_address = ("192.168.0.220", 10000)
 print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % server_address)
 
 sock.connect(server_address)
