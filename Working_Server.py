@@ -1,7 +1,6 @@
 import socket
 import threading
-import socket
-import pickle
+import time
 
 server_ip = "192.168.0.220"
 broadcast_ip = "192.168.0.255"
@@ -9,8 +8,32 @@ udp_port = 1234
 tcp_port = 1235
 buffer = 1024
 
+server_list = []
+
+def server_discovery():
+    host_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    host_udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    host_udp_socket.bind((server_ip, udp_port))
+    
+    data = "%s:%s" % ("SA", server_ip)
+    host_udp_socket.sendto(str.encode(data), (broadcast_ip, 1236))
+    print("IP sent to servers.")
+    
+    timeout = time.time() + 1
+ 
+    while time.time() < timeout:
+        try:
+            print("test0")
+            new_server = host_udp_socket.recvfrom(buffer)
+            server_list.append(new_server)
+            print("receiving")
+        except:
+            print("Listening for Servers")
+
+server_discovery()
+    
 #Create UDP socket, listen for broadcast, transmit own address
-def udp(): 
+def client_discovery(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.bind((broadcast_ip, udp_port))
     
@@ -100,7 +123,7 @@ if __name__ == "__main__":
     while True:
         
         try:
-            udp()
+            client_discovery()
                 
         except:
             continue
@@ -110,3 +133,7 @@ if __name__ == "__main__":
         print(clients)
         print(nicknames)
         print(messages)
+        
+        
+        
+#Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
