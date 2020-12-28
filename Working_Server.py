@@ -1,6 +1,7 @@
 import socket
 import threading
 import socket
+import pickle
 
 server_ip = "192.168.0.220"
 broadcast_ip = "192.168.0.255"
@@ -46,6 +47,7 @@ server.listen()
 
 clients = []
 nicknames = []
+messages = []
 
 def connect():
     # Die Verbindung akzeptieren
@@ -63,10 +65,9 @@ def connect():
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
     client.send(' Mit dem Server verbunden!'.encode('ascii'))
     
-        # Start Handling Thread For Client
+         # Start Handling Thread For Client
     thread = threading.Thread(target=messaging, args=(client,))
     thread.start()
-
 
 def broadcast(message): #um Nachrichten  zu den Clients zu senden
     for client in clients:
@@ -75,6 +76,7 @@ def broadcast(message): #um Nachrichten  zu den Clients zu senden
 def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
     try:
         message = client.recv(1024) #Nachricht empfangen
+        messages.append(message)
         broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
 
@@ -107,4 +109,4 @@ if __name__ == "__main__":
             
         print(clients)
         print(nicknames)
-            
+        print(messages)

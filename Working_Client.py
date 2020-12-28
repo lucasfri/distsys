@@ -1,6 +1,7 @@
 import socket
 import socket
 import threading
+import pickle
 
 broadcast_ip = "192.168.0.255"
 udp_serverport = 1234
@@ -34,6 +35,7 @@ tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 tcp_socket.connect((host_address, tcp_serverport))
 print("TCP connection with server on IP {} established.".format(host_address))
+
 
 # Dem Server zuhoeren und den Benutzernamen senden
 def receive():
