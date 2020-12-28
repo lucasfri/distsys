@@ -2,21 +2,19 @@ import socket
 import socket
 import threading
 
-broadcast_address = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
 
-
-
 #UDP connection
 
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
 nickname = input("Bitte beliebige Eingabe um Verbindungsaufbau zu starten.")
 
-
-udp_socket.sendto(str.encode(nickname), (broadcast_address, udp_serverport))
+udp_socket.sendto(str.encode(nickname), (broadcast_ip, udp_serverport))
 print("Requesting blackboard entrance.")
 
 host_address = udp_socket.recv(buffer)

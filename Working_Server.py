@@ -3,6 +3,7 @@ import threading
 import socket
 
 server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 udp_port = 1234
 tcp_port = 1235
 buffer = 1024
@@ -10,7 +11,7 @@ buffer = 1024
 #Create UDP socket, listen for broadcast, transmit own address
 def udp(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp_socket.bind((server_ip, udp_port))
+    udp_socket.bind((broadcast_ip, udp_port))
     
     #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 2)
     #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 2)
@@ -21,7 +22,12 @@ def udp():
     request, client_address = udp_socket.recvfrom(buffer)
     print("client request received from client on IP {}".format(client_address))
     
-    udp_socket.sendto(str.encode(server_ip), client_address)
+    udp_socket.close()
+    
+    udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket2.bind((server_ip, udp_port))
+    
+    udp_socket2.sendto(str.encode(server_ip), client_address)
     print("Establishing connection")
 
 
@@ -43,8 +49,8 @@ nicknames = []
 
 def connect():
     # Die Verbindung akzeptieren
-    client,server_address = server.accept()
-    print("Verbunden mit {}".format(str(server_address)))
+    client,client_address = server.accept()
+    print("Verbunden mit client {}".format(str(client_address)))
 
     # Anforderung des Benutzernamens und Speicherung dessen
     client.send('NICK'.encode('ascii'))
@@ -55,7 +61,7 @@ def connect():
     # Benutzername mitteilen und broadcasten
     print("Der Benutzername ist {}".format(nickname))
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
-    client.send('Mit dem Server verbunden!'.encode('ascii'))
+    client.send(' Mit dem Server verbunden!'.encode('ascii'))
     
         # Start Handling Thread For Client
     thread = threading.Thread(target=messaging, args=(client,))
@@ -82,16 +88,23 @@ def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle
         
 
 if __name__ == "__main__":
+    
+    #udp_thread = threading.Thread(target=udp)
+    #udp_thread.start()
+    
+    #tcp_thread = threading.Thread(target=connect)
+    #tcp_thread.start()
 
     while True:
+        
         try:
             udp()
-            
+                
         except:
             continue
-        
+            
         connect()
-        
+            
         print(clients)
         print(nicknames)
             
