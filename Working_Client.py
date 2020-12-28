@@ -10,6 +10,7 @@ buffer = 1024
 
 
 #UDP connection
+
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 nickname = input("Bitte beliebige Eingabe um Verbindungsaufbau zu starten.")
@@ -31,12 +32,10 @@ udp_socket.close()
 nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = ("172.29.180.18", 10000)
-#print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % host_address)
-print(host_address)
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-sock.connect((host_address, tcp_serverport))
+tcp_socket.connect((host_address, tcp_serverport))
+print("TCP connection with server on IP {} established.".format(host_address))
 
 # Dem Server zuhoeren und den Benutzernamen senden
 def receive():
@@ -44,27 +43,27 @@ def receive():
         try:
             # Receive Message From Server
             # If 'NICK' Send Nickname
-            message = sock.recv(1024).decode('ascii')
+            message = tcp_socket.recv(buffer).decode('ascii')
             if message == 'NICK':
-                sock.send(nickname.encode('ascii'))
+                tcp_socket.send(nickname.encode('ascii'))
             else:
                 print(message)
         except:
             # Close Connection When Error
             print("Ein Fehler ist aufgetreten!")
-            sock.close()
+            tcp_socket.close()
             break
 
 # Nachrichten zum Server senden
-def write():
+def send():
     while True:
         message = '{}: {}'.format(nickname, input(''))
-        sock.send(message.encode('ascii'))
+        tcp_socket.send(message.encode('ascii'))
 
 # 2 Threads fuer Zuhoeren und Nachrichten schreiben starten
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
-write_thread = threading.Thread(target=write)
+write_thread = threading.Thread(target=send)
 write_thread.start()
 
