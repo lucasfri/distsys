@@ -1,8 +1,7 @@
 import socket
 import threading
 import socket
-import sys
-from test.test_decimal import file
+
 server_ip = "192.168.0.220"
 udp_port = 1234
 tcp_port = 1235

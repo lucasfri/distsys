@@ -1,7 +1,7 @@
 import socket
 import socket
 import threading
-import sys
+
 broadcast_address = "192.168.0.220"
 udp_serverport = 1234
 tcp_serverport = 1235
