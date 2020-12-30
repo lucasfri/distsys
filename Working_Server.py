@@ -2,8 +2,8 @@ import socket
 import threading
 import time
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "192.168.178.41"
+broadcast_ip = "192.168.178.255"
 udp_port = 1234
 tcp_port = 1235
 buffer = 1024
@@ -20,18 +20,19 @@ def server_discovery():
     print("IP sent to servers.")
     
     timeout = time.time() + 1
- 
-    while time.time() < timeout:
-        try:
-            print("test0")
-            new_server = host_udp_socket.recvfrom(buffer)
-            server_list.append(new_server)
-            print("receiving")
-        except:
-            print("Listening for Servers")
+    data = bytearray()
+    new_server = memoryview(data)
 
-server_discovery()
-    
+    while time.time() < timeout:
+        #try:
+        print("test0")
+        host_udp_socket.recv_into(new_server)
+        server_list.append(new_server)
+        print("receiving")
+       # except:
+       #     print("Listening for Servers")
+
+
 #Create UDP socket, listen for broadcast, transmit own address
 def client_discovery(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -119,12 +120,12 @@ if __name__ == "__main__":
     
     #tcp_thread = threading.Thread(target=connect)
     #tcp_thread.start()
-
+    server_discovery()
     while True:
         
         try:
             client_discovery()
-                
+    
         except:
             continue
             
