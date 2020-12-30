@@ -3,7 +3,7 @@ import socket
 import threading
 import pickle
 
-broadcast_ip = "192.168.178.255"
+broadcast_ip = "192.168.0.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024

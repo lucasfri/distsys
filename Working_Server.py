@@ -12,7 +12,7 @@ discovery_port = 1236
 udp_port = 1234
 tcp_port = 1235
 buffer = 1024
-leader = 1
+leader = true
 
 def server_discovery():
 
@@ -23,8 +23,7 @@ def server_discovery():
     host_udp_socket.sendto(str.encode(data), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
    
-    if leader == 1:
-        Thread(target=listen_for_servers, args=()).start()
+    Thread(target=listen_for_servers, args=()).start()
         
     Thread(target=client_discovery, args=()).start()
     host_udp_socket.close()
@@ -46,13 +45,20 @@ def listen_for_servers():
 
     #checken ob ein server acknowledgement vorliegt
     sa_message = listen_for_servers_socket.recv(buffer).decode("UTF-8")
-    listen_for_servers_socket.close()
+    #listen_for_servers_socket.close()
     
     
-    if sa_message[:2] == "SA":
+    if leader == true and sa_message[:2] == "SA":
         print("server request received from server on IP {}".format(sa_message))
         located_server_ip = sa_message[3:]
         server_list.append(located_server_ip)
+        for member in server_list:
+            listen_for_servers_socket.sendto(server_list)
+        
+    elif leader == false and sa_message[:2] == "SA":
+        print("SA Nachricht erhalten aber kein Leader.")
+    
+#Hier weiter machen. Es kann maximal 4 Fälle geben welche mit if schleife abgedeckt werden können/müssen
         
         #als leader die serverliste an die anderen server senden
         
