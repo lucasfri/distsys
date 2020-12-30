@@ -1,6 +1,7 @@
 import socket
 import threading
 import time
+from sys import platform as _platform
 
 server_ip = "192.168.178.41"
 broadcast_ip = "192.168.178.255"
@@ -13,7 +14,17 @@ server_list = []
 def server_discovery():
     host_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     host_udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    host_udp_socket.bind((server_ip, udp_port))
+  #  host_udp_socket.bind((server_ip, udp_port))
+    #check mithilfe einer if-anweisung ob das Betriebssystem Win oder Unixbasiert ist
+    
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        host_udp_socket.bind((broadcast_ip, udp_port))
+        # linux 
+    elif _platform == "win32" or _platform == "win64":
+         host_udp_socket.bind((server_ip, udp_port))
+    
+    print("Ich habe erkannt, dass du das folgende Betriebssystem hast: ", _platform)
+
     
     data = "%s:%s" % ("SA", server_ip)
     host_udp_socket.sendto(str.encode(data), (broadcast_ip, 1236))
