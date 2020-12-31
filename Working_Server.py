@@ -69,13 +69,10 @@ def listen_for_servers():
                 send_list_socket.sendto("Hi".encode("UTF-8"), (member, discovery_port))
                 print("Nachricht geschickt an: ", member)
 
-            
-
-    if leader == False:
-        
+    if leader == False:        
         send_list_socket.bind((server_ip, discovery_port))
         send_list_socket.listen(1)
-        print("Der Nichtleader ist bereit, die Serverliste zu empfangen!.")
+        print("Der Nichtleader ist bereit, die Serverliste zu empfangen!")
         conn, addr = send_list_socket.accept()
 
         while 1:
@@ -83,7 +80,7 @@ def listen_for_servers():
             if not data: break
             print(data.decode("UTF-8"))
         #send_list_socket.recvfrom(buffersize).decode("UTF-8")
-
+        print("unter while")
         
     
 #Hier weiter machen. Es kann maximal 4 Fälle geben welche mit if schleife abgedeckt werden können/müssen
