@@ -12,12 +12,16 @@ discovery_port = 1236
 udp_port = 1234
 tcp_port = 1235
 buffer = 1024
-leader = true
+leader = True
 
 def server_discovery():
 
     print("Ich habe erkannt, dass du das folgende Betriebssystem hast: ", _platform)
-
+  
+    if leader == False:
+        print("Ich bin kein Leader")
+    else: print("Ich bin ein Leader")
+    
     #meine serverinformation an andere server schicken
     data = "%s:%s" % ("SA", server_ip)
     host_udp_socket.sendto(str.encode(data), (broadcast_ip, discovery_port))
@@ -37,26 +41,50 @@ def listen_for_servers():
     listen_for_servers_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     listen_for_servers_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
+     #neuer socket fuer das senden der serverliste
+    send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         listen_for_servers_socket.bind((broadcast_ip, discovery_port))
         # linux 
     elif _platform == "win32" or _platform == "win64":
         listen_for_servers_socket.bind((server_ip, discovery_port))
 
-    #checken ob ein server acknowledgement vorliegt
-    sa_message = listen_for_servers_socket.recv(buffer).decode("UTF-8")
     #listen_for_servers_socket.close()
     
     
-    if leader == true and sa_message[:2] == "SA":
-        print("server request received from server on IP {}".format(sa_message))
-        located_server_ip = sa_message[3:]
-        server_list.append(located_server_ip)
-        for member in server_list:
-            listen_for_servers_socket.sendto(server_list)
+    if leader == True:
+        #checken ob ein Service Announcement vorliegt
+        sa_message = listen_for_servers_socket.recv(buffer).decode("UTF-8")
+
+        if sa_message[:2] == "SA":
         
-    elif leader == false and sa_message[:2] == "SA":
-        print("SA Nachricht erhalten aber kein Leader.")
+            print("server request received from server on IP {}".format(sa_message))
+            located_server_ip = sa_message[3:]
+            server_list.append(located_server_ip)
+            send_list_socket.connect((located_server_ip, discovery_port))
+            for member in server_list:
+                send_list_socket.sendto("Hi".encode("UTF-8"), (member, discovery_port))
+                print("Nachricht geschickt an: ", member)
+
+            
+
+    if leader == False:
+        
+        send_list_socket.bind((server_ip, discovery_port))
+        send_list_socket.listen(1)
+        print("Der Nichtleader ist bereit, die Serverliste zu empfangen!.")
+        conn, addr = send_list_socket.accept()
+
+        while 1:
+            data = conn.recv(1024)
+            if not data: break
+            print(data.decode("UTF-8"))
+        #send_list_socket.recvfrom(buffersize).decode("UTF-8")
+
+        
     
 #Hier weiter machen. Es kann maximal 4 Fälle geben welche mit if schleife abgedeckt werden können/müssen
         
