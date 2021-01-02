@@ -38,6 +38,11 @@ def service_announcement():
     sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
     
+    leader_address = sa_broadcast_socket.recv(buffer)
+    recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    recv_serverlist_socket.connect((leader_address, send_list_port))
+    
     # 3 Sekunden warten ob Antwort auf Broadcast kommt.
     timeout = time.time() + 3
     #leader_address = 0

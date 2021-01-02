@@ -1,9 +1,12 @@
 import socket
+import threading
 from threading import Thread
 import time
 from sys import platform as _platform
 from turtledemo.minimal_hanoi import Disc
 import pickle
+import uuid
+
 
 
 server_ip = "192.168.0.220"
@@ -20,7 +23,6 @@ buffer = 1024
 def service_announcement(server_list):
 
     leader = True
-    response = 0
     
     print("OS: ", _platform)
   
@@ -32,6 +34,7 @@ def service_announcement(server_list):
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sa_broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sa_broadcast_socket.setblocking(False)
     
     #meine serverinformation an andere server schicken
     data = "%s:%s" % ("SA", server_ip)
@@ -39,39 +42,23 @@ def service_announcement(server_list):
     print("Following was broadcasted: ", data)
     
     # 3 Sekunden warten ob Antwort auf Broadcast kommt.
-    timeout = time.time() + 3
-    leader_address = 0
-    #data = bytearray()
-    #leader_address = memoryview(data)
-    
+    leader_response = ""
+
+    sa_broadcast_socket.settimeout(3)
+    try:
+        print("listening for other servers responses...")
+        leader_response = sa_broadcast_socket.recv(buffer).decode("UTF-8")
+        print("Leader response received on {}".format(leader_response))
+    except socket.timeout as e:
+            print(e)
+            print("Nothing received")
             
-    while time.time() < timeout:
-        try:
-            print("listening for other servers responses...")
-            sa_broadcast_socket.recv_into(leader_address)
-            response = leader_address
-            if not data: break
-            print("Leaderaddress is {}".format(leader_address))
-            
-    
-            #TCP Socket für den Empfang der Serverliste
-            recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            recv_serverlist_socket.connect((leader_address, send_list_port))
-            
-            msg = recv_serverlist_socket.recv(buffer)
-            server_list = pickle.loads(msg)
-            recv_serverlist_socket.close()
-            
-        except:
-            print("Done listening")
-            
-            
+           
     sa_broadcast_socket.close()  
-    print(response)
+    
     
     #Wenn keine Antwort dann ernennt sich der Server zum Leader und startet server discovery und client discovery
-    if response == 0:
+    if len(leader_response) == 0:
         leader = True
         server_list.append(server_ip)
         print("I am the first server and leader.")
@@ -81,11 +68,18 @@ def service_announcement(server_list):
         
     #Wenn Antwort kommt wird die Ringformation gestartet
     else:
+            #TCP Socket für den Empfang der Serverliste
+        recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        recv_serverlist_socket.connect((leader_response, send_list_port))
+        
+        msg = recv_serverlist_socket.recv(buffer)
+        server_list = pickle.loads(msg)
+        recv_serverlist_socket.close()
         print("Received serverlist:")
         print(server_list)
         print("Starting Ring formation")
         ring_formation()
-    
     
     return leader
     return server_list
@@ -160,6 +154,7 @@ def server_discovery(server_list):
 
 
 def ring_formation():
+    threading.Timer(10.0, ring_formation).start()
     print("Ring formation started.")
     
     #sorted_binary_ring = sorted([socket.inet_aton(member) for member in socket_list])
