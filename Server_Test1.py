@@ -25,7 +25,7 @@ def service_announcement(leader, server_list):
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sa_broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    sa_broadcast_socket.setblocking(False)
+    #sa_broadcast_socket.setblocking(False)
     
     #meine serverinformation an andere server schicken
     data = "%s:%s" % ("SA", server_ip)
@@ -150,7 +150,6 @@ def ring_formation(server_list):
     print("Ring formation started.") 
     sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
     sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
-    return sorted_ip_ring
     print(sorted_ip_ring)
     print("Ring formation done")
     return sorted_ip_ring
@@ -164,7 +163,8 @@ def send_to_neighbour():
 def client_discovery(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) 
 
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         udp_socket.bind((broadcast_ip, udp_port))

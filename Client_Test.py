@@ -23,11 +23,12 @@ print("Hostaddress is {}".format(host_address))
 
 udp_socket.close()
 
+
 #TCP connection
 
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
-# Nutzernamen auswaehlen
+# Nutzernamen auswaehlen.
 nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
