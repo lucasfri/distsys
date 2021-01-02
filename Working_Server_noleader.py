@@ -6,7 +6,6 @@ from turtledemo.minimal_hanoi import Disc
 import pickle
 
 
-
 server_ip = "192.168.0.220"
 broadcast_ip = "192.168.0.255"
 discovery_port = 1236
