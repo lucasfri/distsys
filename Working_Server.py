@@ -20,16 +20,7 @@ buffer = 1024
 
 
 
-def service_announcement(server_list):
-
-    leader = True
-    
-    print("OS: ", _platform)
-  
-    if leader == True:
-        print("Leader")
-    else: print("Not Leader")
-    
+def service_announcement(leader, server_list):  
     
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -79,7 +70,7 @@ def service_announcement(server_list):
         print("Received serverlist:")
         print(server_list)
         print("Starting Ring formation")
-        ring_formation()
+        ring_formation(server_list)
     
     return leader
     return server_list
@@ -109,6 +100,7 @@ def server_discovery(server_list):
         #Adresse des neuen Servers zur Serverliste hinzufügen
     print("server request received from server on IP {}".format(sa_message))
     located_server_ip = sa_message[3:]
+    located_server_ip = located_server_ip.decode("UTF-8")
     server_list.append(located_server_ip)
     print("server list:")
     print(server_list)
@@ -138,7 +130,7 @@ def server_discovery(server_list):
     print("sent serverlist")
     
     #starte Ringformation
-    ring_formation()   
+    ring_formation(server_list)   
     
     send_list_socket.close()
         
@@ -153,14 +145,16 @@ def server_discovery(server_list):
 
 
 
-def ring_formation():
-    threading.Timer(10.0, ring_formation).start()
+def ring_formation(server_list):
+    #threading.Timer(10.0, ring_formation).start()
     print("Ring formation started.")
-    
-    #sorted_binary_ring = sorted([socket.inet_aton(member) for member in socket_list])
-    #sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
-    #return sorted_ip_ring
-    #print(ring)
+    for member in server_list:
+        print(member) 
+    sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
+    sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+    return sorted_ip_ring
+    print(ring)
+    print("Ring formation done")
     
     
 def send_to_neighbour():
@@ -267,8 +261,9 @@ if __name__ == "__main__":
     nicknames = []
     messages = []
     neighbour = 0
+    leader = ""
     
-    service_announcement(server_list)
+    service_announcement(leader, server_list)
     
     
     #udp_thread = threading.Thread(target=udp)
