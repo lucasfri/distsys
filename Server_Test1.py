@@ -1,113 +1,300 @@
 import socket
-import select
-buffer = 1024
-clientdict = {}
- 
-#UDP connection
-
-udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_socket.bind(("192.168.0.220", 1234))
-
-#udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 2)
-    
-    # Enable broadcasting mode
-#udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 2)
-
-print("server up and running...")
-
-#while True:
-print("Waiting for client request...")
-client_name, client_address = udp_socket.recvfrom(buffer)
-clientdict[client_address] = client_name
-print("client request received from client {} on IP {}".format(client_name, client_address))
-print("Establishing connection")
-
-while True:
-    print("Waiting for client request...")
-    client_name, client_address = udp_socket.recvfrom(buffer)
-    clientdict[client_address] = client_name
-    print("client request received from client {} on IP {}".format(client_name, client_address))
-    print("Establishing connection")
-        
-    udp_socket.sendto(str.encode("192.168.2.85"), client_address)
-
-udp_socket.sendto(str.encode("192.168.0.220"), client_address)
-
-
-#udp_socket.close()  #Ansonsten errno 48: address already in use
-  
-
-#TCP connection  
-
 import threading
-import socket
-import sys
+from threading import Thread
+import time
+from sys import platform as _platform
+from turtledemo.minimal_hanoi import Disc
+import pickle
+import uuid
 
-# Create a TCP/IP socket
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
+discovery_port = 1236
+send_list_port = 1237
+udp_port = 1234
+tcp_port = 1235
+buffer = 1024
+
+
+
+
+def service_announcement(leader, server_list):  
     
-    # Enable broadcasting mode
-server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)  
+    #broadcast socket
+    sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sa_broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    sa_broadcast_socket.setblocking(False)
+    
+    #meine serverinformation an andere server schicken
+    data = "%s:%s" % ("SA", server_ip)
+    sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
+    print("Following was broadcasted: ", data)
+    
+    # 3 Sekunden warten ob Antwort auf Broadcast kommt.
+    leader_response = ""
+
+    sa_broadcast_socket.settimeout(3)
+    try:
+        print("listening for other servers responses...")
+        leader_response = sa_broadcast_socket.recv(buffer).decode("UTF-8")
+        print("Leader response received on {}".format(leader_response))
+    except socket.timeout as e:
+            print(e)
+            print("Nothing received")
+            
+           
+    sa_broadcast_socket.close()  
+    
+    
+    #Wenn keine Antwort dann ernennt sich der Server zum Leader und startet server discovery und client discovery
+    if len(leader_response) == 0:
+        leader = True
+        server_list.append(server_ip)
+        print("I am the first server and leader.")
+        print(server_list)
+        Thread(target=client_discovery, args=()).start()
+        Thread(target=server_discovery(server_list), args=(server_list, )).start()
+        
+    #Wenn Antwort kommt wird die Ringformation gestartet
+    else:
+            #TCP Socket für den Empfang der Serverliste
+        recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        recv_serverlist_socket.connect((leader_response, send_list_port))
+        
+        msg = recv_serverlist_socket.recv(buffer)
+        server_list = pickle.loads(msg)
+        recv_serverlist_socket.close()
+        print("Received serverlist:")
+        print(server_list)
+        print("Starting Ring formation")
+        ring_formation(server_list)
+    
+    return leader
+    return server_list
+
+    
+def server_discovery(server_list):    
+    
+    recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    #Bei Unix Systemen muss ein Broadcast empfangender UDP Socket an die Broadcastadresse gebunden werden, bei Windows an die lokale Adresse.
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        recv_sa_socket.bind((broadcast_ip, discovery_port))
+
+    elif _platform == "win32" or _platform == "win64":
+        recv_sa_socket.bind((server_ip, discovery_port))
+
+    #empfange broadcast
+    print("listening for new servers")
+    sa_message, sa_address = recv_sa_socket.recvfrom(buffer)
+    print(sa_message, sa_address)
+    
+    recv_sa_socket.close()
+
+    #if sa_message[:2] == "SA":
+        #Adresse des neuen Servers zur Serverliste hinzufügen
+    print("server request received from server on IP {}".format(sa_message))
+    located_server_ip = sa_message[3:]
+    located_server_ip = located_server_ip.decode("UTF-8")
+    server_list.append(located_server_ip)
+    print("server list:")
+    print(server_list)
+    
+    #eigene Adresse an neuen Leader senden
+    send_leader_address_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    send_leader_address_socket.sendto(server_ip.encode("UTF-8"), sa_address)
+    print("Own address sent to new server.")
+    send_leader_address_socket.close()
+    
+    #TCP connection aufbauen
+    send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+    send_list_socket.bind((server_ip, send_list_port))
+    send_list_socket.listen()
+    new_server,new_server_address = send_list_socket.accept()
+    print("Connected to new server.")
+
+
+    #Serverliste an neuen Server übermitteln
+    msg = pickle.dumps(server_list)
+    print(msg)
+    new_server.send(msg)
+    #Serverliste an Nachbar übermitteln
+    send_to_neighbour()
+    print("sent serverlist")
+    
+    #starte Ringformation
+    ring_formation(server_list)   
+    
+    send_list_socket.close()
+        
+        
+    
+    #else:
+        #print("Error: Received unknown message.")
+    
+    server_discovery(server_list)
+    
+    return server_list
 
 
 
-# Bind the socket to the address given on the command line
-server_name = "192.168.0.220"
-#server_name = socket.gethostbyname(socket.gethostname())
+def ring_formation(server_list):
+    #threading.Timer(10.0, ring_formation).start()
+    print("Ring formation started.") 
+    sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
+    sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+    return sorted_ip_ring
+    print(sorted_ip_ring)
+    print("Ring formation done")
+    return sorted_ip_ring
+    
+def send_to_neighbour():
+    print("Send to neighbour")
 
-server_address = (server_name, 1235)
 
-print('Server gestartet auf %s mit Port %s' % server_address)
-server.bind(server_address)
-server.listen()
 
-clients = []
-nicknames = []
+#Create UDP socket, listen for broadcast, transmit own address
+def client_discovery(): 
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        udp_socket.bind((broadcast_ip, udp_port))
+        # linux 
+    elif _platform == "win32" or _platform == "win64":
+         udp_socket.bind((server_ip, udp_port))
+    
+    #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    
+    print("server up and running...")
+    print("Waiting for client request...") 
+       
+    request, client_address = udp_socket.recvfrom(buffer)
+    print("client request received from client on IP {}".format(client_address))
+        
+    udp_socket2 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket2.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    udp_socket2.bind((server_ip, udp_port))
+    
+    udp_socket2.sendto(str.encode(server_ip), client_address)
+    print("Establishing connection")
+    Thread(target=client_discovery, args=()).start()
+    Thread(target=connect, args=()).start()
+
+
+
+def connect():
+    
+        #TCP connection  
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) 
+    
+    #server_ip = socket.gethostbyname(socket.gethostname())
+    server_address = (server_ip, tcp_port)
+    print('Server gestartet auf IP %s und Port %s' % server_address)
+    server.bind(server_address)
+    server.listen()
+    
+    
+    # Die Verbindung akzeptieren
+    client,client_address = server.accept()
+    print("Verbunden mit client {}".format(str(client_address)))
+
+    # Anforderung des Benutzernamens und Speicherung dessen
+    client.send('NICK'.encode('ascii'))
+    nickname = client.recv(1024).decode('ascii')
+    nicknames.append(nickname)
+    clients.append(client)
+
+    # Benutzername mitteilen und broadcasten
+    print("Der Benutzername ist {}".format(nickname))
+    broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
+    client.send(' Mit dem Server verbunden!'.encode('ascii'))
+    
+         # Start Handling Thread For Client
+    Thread(target=messaging(client), args=(client, )).start()
+
+
 
 def broadcast(message): #um Nachrichten  zu den Clients zu senden
     for client in clients:
         client.send(message)
 
-def handle(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
-    while True:
-        try:
-            message = client.recv(1024) #Nachricht empfangen
-            broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+
+
+def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
+    try:
+        message = client.recv(1024) #Nachricht empfangen
+        messages.append(message)
+        broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+
+
+    except: #Sofern der Client keine Nachricht empfaengt
+        index = clients.index(client)
+        clients.remove(client) #Client wird von der Clientlist entfernt
+        client.close()
+        nickname = nicknames[index]
+        broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
+        nicknames.remove(nickname)
+    Thread(target=messaging(client), args=(client)).start()
+    
+    
+
+if __name__ == "__main__":
+    
+    server_list = []
+    clients = []
+    nicknames = []
+    messages = []
+    neighbour = 0
+    leader = ""
+    
+    service_announcement(leader, server_list)
+    
+    
+    #udp_thread = threading.Thread(target=udp)
+    #udp_thread.start()
+    
+    #tcp_thread = threading.Thread(target=connect)
+    #tcp_thread.start()
+
+
+    
+    #ACCEPT_THREAD = Thread(target=server_discovery())
+
+   # ACCEPT_THREAD.start()
+    #ACCEPT_THREAD.join()
+    
+    
+
+    #while True:
+        
+     #   try:
+      #      client_discovery()
+    
+       # except:
+        #    continue
+            
+        #connect()
+                
+    print(clients)
+    print(nicknames)
+    print(messages)
 
         
-        except: #Sofern der Client keine Nachricht empfaengt
-            index = clients.index(client)
-            clients.remove(client) #Client wird von der Clientlist entfernt
-            client.close()
-            nickname = nicknames[index]
-            broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
-            nicknames.remove(nickname)
-            break
+        
+#Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
 
-
-def receive():
-    while True:
-        # Die Verbindung akzeptieren
-        client,server_address = server.accept()
-        print("Verbunden mit {}".format(str(server_address)))
-
-        # Anforderung des Benutzernamens und Speicherung dessen
-        client.send('NICK'.encode('ascii'))
-        nickname = client.recv(1024).decode('ascii')
-        nicknames.append(nickname)
-        clients.append(client)
-
-        # Benutzername mitteilen und broadcasten
-        print("Der Benutzername ist {}".format(nickname))
-        broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
-        client.send('Mit dem Server verbunden!'.encode('ascii'))
-
-
-        # Start Handling Thread For Client
-        thread = threading.Thread(target=handle, args=(client,))
-        thread.start()
-                
-receive()

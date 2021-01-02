@@ -1,16 +1,21 @@
 import socket
-broadcast_address = "192.168.0.220"
+import socket
+import threading
+import pickle
+
+broadcast_ip = "192.168.0.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
 
 #UDP connection
+
 udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-nickname = input("Ihr Name?")
+nickname = input("Bitte beliebige Eingabe um Verbindungsaufbau zu starten.")
 
-
-udp_socket.sendto(str.encode(nickname), (broadcast_address, udp_serverport))
+udp_socket.sendto(str.encode(nickname), (broadcast_ip, udp_serverport))
 print("Requesting blackboard entrance.")
 
 host_address = udp_socket.recv(buffer)
@@ -20,20 +25,18 @@ udp_socket.close()
 
 #TCP connection
 
-import socket
-import threading
-import sys
 #source https://www.neuralnine.com/tcp-chat-in-python/
 #source https://pymotw.com/2/socket/tcp.html
 # Nutzernamen auswaehlen
 nickname = input("Wie lautet ihr Benutzername? ")
 
 # Verbindung zum Server
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = ("172.29.180.18", 10000)
-#print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % host_address)
+tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-sock.connect((host_address, tcp_serverport))
+tcp_socket.connect((host_address, tcp_serverport))
+print("TCP connection with server on IP {} established.".format(host_address))
+
 
 # Dem Server zuhoeren und den Benutzernamen senden
 def receive():
@@ -41,27 +44,27 @@ def receive():
         try:
             # Receive Message From Server
             # If 'NICK' Send Nickname
-            message = sock.recv(1024).decode('ascii')
+            message = tcp_socket.recv(buffer).decode('ascii')
             if message == 'NICK':
-                sock.send(nickname.encode('ascii'))
+                tcp_socket.send(nickname.encode('ascii'))
             else:
                 print(message)
         except:
             # Close Connection When Error
             print("Ein Fehler ist aufgetreten!")
-            sock.close()
+            tcp_socket.close()
             break
-        
+
 # Nachrichten zum Server senden
-def write():
+def send():
     while True:
         message = '{}: {}'.format(nickname, input(''))
-        sock.send(message.encode('ascii'))
-        
+        tcp_socket.send(message.encode('ascii'))
+
 # 2 Threads fuer Zuhoeren und Nachrichten schreiben starten
 receive_thread = threading.Thread(target=receive)
 receive_thread.start()
 
-write_thread = threading.Thread(target=write)
+write_thread = threading.Thread(target=send)
 write_thread.start()
-    
+
