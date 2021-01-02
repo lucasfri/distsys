@@ -3,110 +3,166 @@ from threading import Thread
 import time
 from sys import platform as _platform
 from turtledemo.minimal_hanoi import Disc
-from _socket import SHUT_RDWR
+import pickle
 
 
-server_ip = "192.168.178.41"
-broadcast_ip = "192.168.178.255"
+server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
+send_list_port = 1237
 udp_port = 1234
 tcp_port = 1235
 buffer = 1024
-leader = True
 
-def server_discovery():
 
-    print("Ich habe erkannt, dass du das folgende Betriebssystem hast: ", _platform)
+
+def service_announcement():
+
+    leader = True
+    server_list = []
+    response = 0
+    
+    print("OS: ", _platform)
   
     if leader == False:
-        print("Ich bin kein Leader")
-    else: print("Ich bin ein Leader")
+        print("Leader")
+    else: print("Not Leader")
+    
+    
+    #broadcast socket
+    sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sa_broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     
     #meine serverinformation an andere server schicken
     data = "%s:%s" % ("SA", server_ip)
-    host_udp_socket.sendto(str.encode(data), (broadcast_ip, discovery_port))
+    sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
-   
-    Thread(target=listen_for_servers, args=()).start()
-        
-    Thread(target=client_discovery, args=()).start()
-    host_udp_socket.close()
-
-def listen_for_servers():    
-   # wenn SA... Nachricht empfangen habe, schicke ich eine SB Nachricht an den Sender mit meiner IP POrt zurueck
-    #listen_for_servers_socket.bind((server_ip, 1236))
-    ##check mithilfe einer if-anweisung ob das Betriebssystem Win oder Unixbasiert ist
     
-    listen_for_servers_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    listen_for_servers_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    listen_for_servers_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    
-     #neuer socket fuer das senden der serverliste
-    send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-
-    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
-        listen_for_servers_socket.bind((broadcast_ip, discovery_port))
-        # linux 
-    elif _platform == "win32" or _platform == "win64":
-        listen_for_servers_socket.bind((server_ip, discovery_port))
-
-    #listen_for_servers_socket.close()
-    
-    
-    if leader == True:
-        #checken ob ein Service Announcement vorliegt
-        sa_message = listen_for_servers_socket.recv(buffer).decode("UTF-8")
-
-        if sa_message[:2] == "SA":
-        
-            print("server request received from server on IP {}".format(sa_message))
-            located_server_ip = sa_message[3:]
-            server_list.append(located_server_ip)
-            send_list_socket.connect((located_server_ip, discovery_port))
-            for member in server_list:
-                send_list_socket.sendto("Hi".encode("UTF-8"), (member, discovery_port))
-                print("Nachricht geschickt an: ", member)
-
-            
-
-    if leader == False:
-        
-        send_list_socket.bind((server_ip, discovery_port))
-        send_list_socket.listen(1)
-        print("Der Nichtleader ist bereit, die Serverliste zu empfangen!.")
-        conn, addr = send_list_socket.accept()
-
-        while 1:
-            data = conn.recv(1024)
-            if not data: break
-            print(data.decode("UTF-8"))
-        #send_list_socket.recvfrom(buffersize).decode("UTF-8")
-
-        
-    
-#Hier weiter machen. Es kann maximal 4 Fälle geben welche mit if schleife abgedeckt werden können/müssen
-        
-        #als leader die serverliste an die anderen server senden
-        
-#5 sekunden darauf warten, dass der leader mir die client list sendet
-    #infos von anderen servern empfangen
-    #timeout = time.time() + 1
+    # 3 Sekunden warten ob Antwort auf Broadcast kommt.
+    timeout = time.time() + 3
+    leader_address = 0
     #data = bytearray()
-    #new_server = memoryview(data)
+    #leader_address = memoryview(data)
+    
+            
+    while time.time() < timeout:
+        try:
+            print("listening for other servers responses...")
+            sa_broadcast_socket.recv_into(leader_address)
+            response = leader_address
+            if not data: break
+            print("Leaderaddress is {}".format(leader_address))
+            
+    
+            #TCP Socket für den Empfang der Serverliste
+            recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            recv_serverlist_socket.connect((leader_address, send_list_port))
+            
+            msg = recv_serverlist_socket.recv(buffer)
+            server_list = pickle.loads(msg)
+            
+        except:
+            print("Done listening")
+            
+            
+    sa_broadcast_socket.close()  
+    print(response)
+    
+    #Wenn keine Antwort dann ernennt sich der Server zum Leader und startet server discovery und client discovery
+    if response == 0:
+        leader = True
+        server_list.append(server_ip)
+        print("I am the first server and leader.")
+        Thread(target=client_discovery, args=()).start()
+        Thread(target=server_discovery(), args=()).start()
+        
+    #Wenn Antwort kommt wird die Ringformation gestartet
+    else:
+        print("Received serverlist:")
+        print(server_list)
+        print("Starting Ring formation")
+        ring_formation()
+    
+    
+    return leader
+    return server_list
+
+    
+def server_discovery():    
+    
+    recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    #Bei Unix Systemen muss ein Broadcast empfangender UDP Socket an die Broadcastadresse gebunden werden, bei Windows an die lokale Adresse.
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
+        recv_sa_socket.bind((broadcast_ip, discovery_port))
+
+    elif _platform == "win32" or _platform == "win64":
+        recv_sa_socket.bind((server_ip, discovery_port))
+
+    #empfange broadcast
+    print("listening for new servers")
+    sa_message, sa_address = recv_sa_socket.recvfrom(buffer)
+    print(sa_message, sa_address)
+    
+    recv_sa_socket.close()
+
+    #if sa_message[:2] == "SA":
+        #Adresse des neuen Servers zur Serverliste hinzufügen
+    print("server request received from server on IP {}".format(sa_message))
+    located_server_ip = sa_message[3:]
+    server_list.append(located_server_ip)
+    print("server list:")
+    print(server_list)
+    
+    #eigene Adresse an neuen Leader senden
+    send_leader_address_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    send_leader_address_socket.sendto(server_ip.encode("UTF-8"), sa_address)
+    print("Own address sent to new server.")
+    send_leader_address_socket.close()
+    
+    #TCP connection aufbauen
+    send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+    send_list_socket.bind((server_ip, send_list_port))
+    send_list_socket.listen()
+    new_server,new_server_address = send_list_socket.accept()
+    print("Connected to new server.")
 
 
-    #while time.time() < timeout:
-        #try:
-    #    print("listening for other servers responses...") 
-    #    host_udp_socket.recv_into(new_server)
-    #    server_list.append(new_server)
-    #    print("receiving")
-       # except:
-       #     print("Listening for Servers")
-       
-    Thread(target=listen_for_servers(), args=()).start()
+    #Serverliste an neuen Server übermitteln
+    msg = pickle.dumps(server_list)
+    print(msg)
+    new_server.send(msg)
+    #Serverliste an Nachbar übermitteln
+    send_to_neighbour()
+    print("sent serverlist")
+    
+    #starte Ringformation
+    ring_formation()   
+    
+    send_list_socket.close()
+        
+        
+    
+    #else:
+        #print("Error: Received unknown message.")
+    
+    server_discovery()
+
+
+
+def ring_formation():
+    print("Ring formation started.")
+    
+    
+    
+def send_to_neighbour():
+    print("Send to neighbour")
+
 
 
 #Create UDP socket, listen for broadcast, transmit own address
@@ -138,6 +194,8 @@ def client_discovery():
     print("Establishing connection")
     Thread(target=client_discovery, args=()).start()
     Thread(target=connect, args=()).start()
+
+
 
 def connect():
     
@@ -173,9 +231,13 @@ def connect():
          # Start Handling Thread For Client
     Thread(target=messaging(client), args=(client, )).start()
 
+
+
 def broadcast(message): #um Nachrichten  zu den Clients zu senden
     for client in clients:
         client.send(message)
+
+
 
 def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
     try:
@@ -193,30 +255,34 @@ def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle
         nicknames.remove(nickname)
     Thread(target=messaging(client), args=(client)).start()
     
+    
 
 if __name__ == "__main__":
     
-
     server_list = []
     clients = []
     nicknames = []
     messages = []
+    neighbour = 0
+    
+    service_announcement()
+    
+    
     #udp_thread = threading.Thread(target=udp)
     #udp_thread.start()
     
     #tcp_thread = threading.Thread(target=connect)
     #tcp_thread.start()
-    host_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    host_udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
 
     
-    ACCEPT_THREAD = Thread(target=server_discovery)
+    #ACCEPT_THREAD = Thread(target=server_discovery())
 
-    ACCEPT_THREAD.start()
-    ACCEPT_THREAD.join()
+   # ACCEPT_THREAD.start()
+    #ACCEPT_THREAD.join()
     
     
-    #server_discovery()
+   
     #while True:
         
      #   try:
@@ -234,3 +300,4 @@ if __name__ == "__main__":
         
         
 #Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
+
