@@ -156,12 +156,14 @@ def server_discovery():
 
 def ring_formation():
     print("Ring formation started.")
-    while True:
     
     
 def send_to_neighbour():
-    print("Send to neighbour")
+    print("Send to neighbour.")
 
+def recv_from_neighbour():
+    print("recv_from_neighbour")
+    
 
 
 #Create UDP socket, listen for broadcast, transmit own address
