@@ -1,5 +1,5 @@
 import socket
-from threading import Thread
+import threading
 import time
 from sys import platform as _platform
 from turtledemo.minimal_hanoi import Disc
@@ -84,7 +84,7 @@ def service_announcement():
         print(server_list)
         print("Starting Ring formation")
         ring_formation()
-
+        #threading.timer(10.0, ring_formation).start()
     
     return leader
     return server_list
@@ -126,7 +126,7 @@ def server_discovery():
     
     #TCP connection aufbauen
     send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     send_list_socket.bind((server_ip, send_list_port))
     send_list_socket.listen()
@@ -155,8 +155,13 @@ def server_discovery():
 
 
 def ring_formation():
+    threading.Timer(10.0, ring_formation).start()
     print("Ring formation started.")
     
+    #sorted_binary_ring = sorted([socket.inet_aton(member) for member in socket_list])
+    #sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+    #return sorted_ip_ring
+    #print(ring)
     
 def send_to_neighbour():
     print("Send to neighbour.")

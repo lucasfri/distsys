@@ -16,15 +16,14 @@ buffer = 1024
 
 
 
-def service_announcement():
+def service_announcement(server_list):
 
     leader = True
-    server_list = []
     response = 0
     
     print("OS: ", _platform)
   
-    if leader == False:
+    if leader == True:
         print("Leader")
     else: print("Not Leader")
     
@@ -61,6 +60,7 @@ def service_announcement():
             
             msg = recv_serverlist_socket.recv(buffer)
             server_list = pickle.loads(msg)
+            recv_serverlist_socket.close()
             
         except:
             print("Done listening")
@@ -74,8 +74,9 @@ def service_announcement():
         leader = True
         server_list.append(server_ip)
         print("I am the first server and leader.")
+        print(server_list)
         Thread(target=client_discovery, args=()).start()
-        Thread(target=server_discovery(), args=()).start()
+        Thread(target=server_discovery(server_list), args=(server_list, )).start()
         
     #Wenn Antwort kommt wird die Ringformation gestartet
     else:
@@ -89,7 +90,7 @@ def service_announcement():
     return server_list
 
     
-def server_discovery():    
+def server_discovery(server_list):    
     
     recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -151,13 +152,19 @@ def server_discovery():
     #else:
         #print("Error: Received unknown message.")
     
-    server_discovery()
+    server_discovery(server_list)
+    
+    return server_list
 
 
 
 def ring_formation():
     print("Ring formation started.")
     
+    #sorted_binary_ring = sorted([socket.inet_aton(member) for member in socket_list])
+    #sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+    #return sorted_ip_ring
+    #print(ring)
     
     
 def send_to_neighbour():
@@ -169,6 +176,7 @@ def send_to_neighbour():
 def client_discovery(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         udp_socket.bind((broadcast_ip, udp_port))
@@ -201,9 +209,8 @@ def connect():
     
         #TCP connection  
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    #server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    #server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     
     
     #server_ip = socket.gethostbyname(socket.gethostname())
@@ -265,7 +272,7 @@ if __name__ == "__main__":
     messages = []
     neighbour = 0
     
-    service_announcement()
+    service_announcement(server_list)
     
     
     #udp_thread = threading.Thread(target=udp)
