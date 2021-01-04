@@ -6,6 +6,7 @@ from sys import platform as _platform
 from turtledemo.minimal_hanoi import Disc
 import pickle
 import uuid
+#from smtplib import server
 
 
 
@@ -15,6 +16,7 @@ discovery_port = 1236
 send_list_port = 1237
 udp_port = 1234
 tcp_port = 1235
+server_com_port = 1238
 buffer = 1024
 
 
@@ -59,7 +61,7 @@ def service_announcement(leader, server_list):
         
     #Wenn Antwort kommt wird die Ringformation gestartet
     else:
-            #TCP Socket für den Empfang der Serverliste
+            #TCP Socket fuer den Empfang der Serverliste
         recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         recv_serverlist_socket.connect((leader_response, send_list_port))
@@ -71,9 +73,12 @@ def service_announcement(leader, server_list):
         print(server_list)
         print("Starting Ring formation")
         ring_formation(server_list)
-    
-    return leader
-    return server_list
+        print("Starting leader_noleader_TCP")
+        leader_noleader_tcp(leader_response)
+        
+    return leader, server_list,
+
+
 
     
 def server_discovery(server_list):    
@@ -98,7 +103,7 @@ def server_discovery(server_list):
     recv_sa_socket.close()
 
     #if sa_message[:2] == "SA":
-        #Adresse des neuen Servers zur Serverliste hinzufügen
+        #Adresse des neuen Servers zur Serverliste hinzufuegen
     print("server request received from server on IP {}".format(sa_message))
     located_server_ip = sa_message[3:]
     located_server_ip = located_server_ip.decode("UTF-8")
@@ -122,19 +127,21 @@ def server_discovery(server_list):
     print("Connected to new server.")
 
 
+
     #Serverliste an neuen Server übermitteln
     msg = pickle.dumps(server_list)
     print(msg)
     new_server.send(msg)
     #Serverliste an Nachbar übermitteln
-    send_to_neighbour()
+    #leader_noleader_tcp(msg)
     print("sent serverlist")
+    
+    leader_noleader_tcp(server_ip)
     
     #starte Ringformation
     ring_formation(server_list)   
     
     send_list_socket.close()
-        
         
     
     #else:
@@ -143,6 +150,42 @@ def server_discovery(server_list):
     server_discovery(server_list)
     
     return server_list
+
+def leader_noleader_tcp(leader_ip):
+    
+    if leader == True:
+
+        server_com_socket.bind((server_ip, server_com_port_port))
+        server_com_socket.listen()
+        print("server_com_socket erstellt")
+        
+        for members in server_list:
+
+            server_socket.accept()
+            print("accept")
+            server_list_socket.send(msg)
+            print("Connected with noleader {}".format(member))
+        server_com_socket.close()     
+     
+    else:
+        server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
+        time.sleep(5)
+        
+        server_com_socket.connect((leader_ip, server_com_port))
+        print("Connected with leader.")
+        
+        while True:
+            server_com_socket.recv(buffer)
+            print("Das ist ein Backup Update")
+        server_com_socket.close()
+           
+           
+    
+
+def leader_noleader_send(msg):
+    server_com_socket.send(msg)
 
 
 
@@ -165,9 +208,9 @@ def get_neighbour(ring, own_ip, direction='left'):
                 return ring[0]
                 print("I am the only server and therefore my neighbour")
             else:
-                left_neighbour = ring[own_ip_index + 1]
+                left_neighbour = ring[own_ip_index - 1]
                 print("My left neighbour is {}".format(left_neighbour))
-                right_neighbour = ring[own_ip_index -1]
+                right_neighbour = ring[own_ip_index + 1]
                 print("My right neighbour is {}".format(right_neighbour))
                 return left_neighbour, right_neighbour
         else:
@@ -276,6 +319,7 @@ def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle
     try:
         message = client.recv(1024) #Nachricht empfangen
         messages.append(message)
+        leader_noleader_send(message)
         broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
 
@@ -298,6 +342,10 @@ if __name__ == "__main__":
     messages = []
     neighbour = 0
     leader = ""
+    
+    server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     
     service_announcement(leader, server_list)
     
@@ -326,6 +374,7 @@ if __name__ == "__main__":
         #    continue
             
         #connect()
+
                 
     print(clients)
     print(nicknames)
