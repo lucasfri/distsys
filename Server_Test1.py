@@ -74,14 +74,16 @@ def service_announcement(leader, server_list):
         print("Starting Ring formation")
         ring_formation(server_list)
         print("Starting leader_noleader_TCP")
-        leader_noleader_tcp(leader_response)
-        
-    return leader, server_list,
+        leader_noleader_tcp(False, leader_response, server_tcp_connections)
+
 
 
 
     
-def server_discovery(server_list):    
+def server_discovery(server_list): 
+    
+    leader = True  
+    leader_ip = server_ip 
     
     recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -132,60 +134,65 @@ def server_discovery(server_list):
     msg = pickle.dumps(server_list)
     print(msg)
     new_server.send(msg)
-    #Serverliste an Nachbar übermitteln
-    #leader_noleader_tcp(msg)
-    print("sent serverlist")
-    
-    leader_noleader_tcp(server_ip)
-    
-    #starte Ringformation
-    ring_formation(server_list)   
-    
+    print("sent serverlist to new server")
     send_list_socket.close()
-        
+    #Serverliste an Nachbar übermitteln
+
+    
+    
+    Thread(target=leader_noleader_tcp(leader, leader_ip, server_tcp_connections), args=(leader, leader_ip, server_tcp_connections)).start()
+    
+        #starte Ringformation
+    ring_formation(server_list)   
     
     #else:
         #print("Error: Received unknown message.")
     
     server_discovery(server_list)
-    
-    return server_list
 
-def leader_noleader_tcp(leader_ip):
+    
+    
+    #return server_list
+
+def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
+    
+    server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     
     if leader == True:
 
-        server_com_socket.bind((server_ip, server_com_port_port))
+        server_com_socket.bind((leader_ip, server_com_port))
         server_com_socket.listen()
         print("server_com_socket erstellt")
         
-        for members in server_list:
-
-            server_socket.accept()
-            print("accept")
-            server_list_socket.send(msg)
-            print("Connected with noleader {}".format(member))
-        server_com_socket.close()     
+        noleader, noleader_address = server_com_socket.accept()
+        
+        server_tcp_connections.append(noleader)
+        
+        
+        print("Connected with noleader {}".format(noleader))
+        print("Connected with noleader {}".format(noleader_address)) 
+        
+        return server_tcp_connections  
      
     else:
-        server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
-        time.sleep(5)
-        
+        #time.sleep(5)
+        print("connecting to leader")
         server_com_socket.connect((leader_ip, server_com_port))
         print("Connected with leader.")
         
         while True:
             server_com_socket.recv(buffer)
-            print("Das ist ein Backup Update")
         server_com_socket.close()
-           
+
            
     
 
-def leader_noleader_send(msg):
-    server_com_socket.send(msg)
+def leader_noleader_send(msg, server_tcp_connections):
+    for socket in server_tcp_connections:
+        socket.send(msg)
 
 
 
@@ -302,7 +309,7 @@ def connect():
     # Benutzername mitteilen und broadcasten
     print("Der Benutzername ist {}".format(nickname))
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
-    client.send(' Mit dem Server verbunden!'.encode('ascii'))
+    client.send('Mit dem Server verbunden!'.encode('ascii'))
     
          # Start Handling Thread For Client
     Thread(target=messaging(client), args=(client, )).start()
@@ -319,7 +326,7 @@ def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle
     try:
         message = client.recv(1024) #Nachricht empfangen
         messages.append(message)
-        leader_noleader_send(message)
+        leader_noleader_send(message, server_tcp_connections)
         broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
 
@@ -340,12 +347,12 @@ if __name__ == "__main__":
     clients = []
     nicknames = []
     messages = []
+    server_tcp_connections = []
     neighbour = 0
     leader = ""
+    variable = "Test"
     
-    server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
     
     service_announcement(leader, server_list)
     
