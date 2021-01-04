@@ -9,8 +9,8 @@ import uuid
 
 
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "192.168.30.66"
+broadcast_ip = "192.168.30.255"
 discovery_port = 1236
 send_list_port = 1237
 udp_port = 1234
@@ -81,6 +81,7 @@ def server_discovery(server_list):
     recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
     
     #Bei Unix Systemen muss ein Broadcast empfangender UDP Socket an die Broadcastadresse gebunden werden, bei Windows an die lokale Adresse.
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
@@ -152,12 +153,48 @@ def ring_formation(server_list):
     sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
     print(sorted_ip_ring)
     print("Ring formation done")
-    return sorted_ip_ring
+    get_neighbour(sorted_ip_ring, server_ip, "left")
+
     
-def send_to_neighbour():
+
+def get_neighbour(ring, own_ip, direction='left'):
+    own_ip_index = ring.index(own_ip) if own_ip in ring else -1 
+    if own_ip_index != -1:
+        if direction == 'left':
+            if own_ip_index + 1 == len(ring):
+                return ring[0]
+                print("I am the only server and therefore my neighbour")
+            else:
+                left_neighbour = ring[own_ip_index + 1]
+                print("My left neighbour is {}".format(left_neighbour))
+                right_neighbour = ring[own_ip_index -1]
+                print("My right neighbour is {}".format(right_neighbour))
+                return left_neighbour, right_neighbour
+        else:
+            if own_ip_index == 0: 
+                return ring[len(ring) - 1]
+            else:
+                return ring[own_ip_index - 1] 
+    else:
+        print("Getting neighbour failed.")
+        return None
+        
+
+
+def send_to_neighbour(message):
     print("Send to neighbour")
+    send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
+    send_neighbour_socket_socket.bind((server_ip, send_list_port))
+    send_neighbour_socket_socket.listen()
+    send_neighbour_socket_socket.accept()
+    
+    send_neighbour_socket.send(data)
 
+    send_neighbour_socket.close()
+    
 
 #Create UDP socket, listen for broadcast, transmit own address
 def client_discovery(): 

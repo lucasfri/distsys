@@ -2,7 +2,7 @@ import socket
 from threading import Thread
 import pickle
 
-broadcast_ip = "192.168.2.255"
+broadcast_ip = "192.168.30.255"
 udp_serverport = 1234
 tcp_serverport = 1235
 buffer = 1024
@@ -28,7 +28,6 @@ def receive():
 # Nachrichten zum Server senden
 def send():
     while True:
-        print("send")
         message = '{}: {}'.format(nickname, input(''))
         tcp_socket.send(message.encode('ascii'))
     
