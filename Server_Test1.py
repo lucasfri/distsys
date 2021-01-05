@@ -74,7 +74,7 @@ def service_announcement(leader, server_list, server_tcp_connections):
         print("Starting Ring formation")
         ring_formation(server_list)
         print("Starting leader_noleader_TCP")
-        leader_noleader_tcp(False, leader_response, server_tcp_connections)
+        leader_noleader_tcp(False, leader_response)
 
 
 
@@ -140,7 +140,7 @@ def server_discovery(server_list, server_tcp_connections):
 
     
     
-    Thread(target=leader_noleader_tcp(leader, leader_ip, server_tcp_connections), args=(leader, leader_ip, server_tcp_connections)).start()
+    Thread(target=leader_noleader_tcp(leader, leader_ip), args=(leader, leader_ip)).start()
     
         #starte Ringformation
     ring_formation(server_list)   
@@ -154,7 +154,7 @@ def server_discovery(server_list, server_tcp_connections):
     
     #return server_list
 
-def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
+def leader_noleader_tcp(leader, leader_ip):
     
     server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -170,10 +170,13 @@ def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
         noleader, noleader_address = server_com_socket.accept()
         
         #server_tcp_connections.append(noleader)
+        server_tcp_connections.append(noleader)
+        print("TCP Server connections: {}".format(server_tcp_connections))
         
         
         print("Connected with noleader {}".format(noleader))
         print("Connected with noleader {}".format(noleader_address)) 
+        
           
      
     else:
@@ -184,18 +187,16 @@ def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
         print("Connected with leader.")
         
         while True:
-            server_com_socket.recv(buffer)
+            last_sent_msg = server_com_socket.recv(buffer)
+            print(last_sent_msg)
         server_com_socket.close()
         
-
-    server_tcp_connections.append(noleader)
-    print("TCP Server connections: {}".format(server_tcp_connections))
     
     #return server_tcp_connections    
     
 
-def leader_noleader_send(msg, server_tcp_connections):
-    print("stc: {}".format(server_tcp-connections))
+def leader_noleader_send(msg):
+    print("stc: {}".format(server_tcp_connections))
     for socket in server_tcp_connections:
         socket.send(msg)
 
@@ -328,21 +329,22 @@ def broadcast(message): #um Nachrichten  zu den Clients zu senden
 
 
 def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
-    try:
-        message = client.recv(1024) #Nachricht empfangen
-        messages.append(message)
-        leader_noleader_send(message, server_tcp_connections)
-        broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+    #try:
+    message = client.recv(1024) #Nachricht empfangen
+    messages.append(message)
+    leader_noleader_send(message)
+    broadcast(message) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+    
+    Thread(target=messaging(client), args=(client)).start()
 
-
-    except: #Sofern der Client keine Nachricht empfaengt
+'''    except: #Sofern der Client keine Nachricht empfaengt
         index = clients.index(client)
         clients.remove(client) #Client wird von der Clientlist entfernt
         client.close()
         nickname = nicknames[index]
         broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
-        nicknames.remove(nickname)
-    Thread(target=messaging(client), args=(client)).start()
+        nicknames.remove(nickname)'''
+    
     
     
 
@@ -356,6 +358,7 @@ if __name__ == "__main__":
     neighbour = 0
     leader = ""
     variable = "Test"
+    last_sent_msg = "Welcome!"
     
 
     service_announcement(leader, server_list, server_tcp_connections)
