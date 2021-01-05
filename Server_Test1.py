@@ -10,8 +10,8 @@ import uuid
 
 
 
-server_ip = "192.168.30.66"
-broadcast_ip = "192.168.30.255"
+server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
 send_list_port = 1237
 udp_port = 1234
@@ -22,7 +22,7 @@ buffer = 1024
 
 
 
-def service_announcement(leader, server_list):  
+def service_announcement(leader, server_list, server_tcp_connections):  
     
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -57,7 +57,7 @@ def service_announcement(leader, server_list):
         print("I am the first server and leader.")
         print(server_list)
         Thread(target=client_discovery, args=()).start()
-        Thread(target=server_discovery(server_list), args=(server_list, )).start()
+        Thread(target=server_discovery(server_list, server_tcp_connections), args=(server_list, )).start()
         
     #Wenn Antwort kommt wird die Ringformation gestartet
     else:
@@ -80,7 +80,7 @@ def service_announcement(leader, server_list):
 
 
     
-def server_discovery(server_list): 
+def server_discovery(server_list, server_tcp_connections): 
     
     leader = True  
     leader_ip = server_ip 
@@ -148,7 +148,7 @@ def server_discovery(server_list):
     #else:
         #print("Error: Received unknown message.")
     
-    server_discovery(server_list)
+    server_discovery(server_list, server_tcp_connections)
 
     
     
@@ -159,6 +159,7 @@ def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
     server_com_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_com_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    print(server_tcp_connections)
     
     if leader == True:
 
@@ -168,13 +169,12 @@ def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
         
         noleader, noleader_address = server_com_socket.accept()
         
-        server_tcp_connections.append(noleader)
+        #server_tcp_connections.append(noleader)
         
         
         print("Connected with noleader {}".format(noleader))
         print("Connected with noleader {}".format(noleader_address)) 
-        
-        return server_tcp_connections  
+          
      
     else:
         
@@ -186,11 +186,16 @@ def leader_noleader_tcp(leader, leader_ip, server_tcp_connections):
         while True:
             server_com_socket.recv(buffer)
         server_com_socket.close()
+        
 
-           
+    server_tcp_connections.append(noleader)
+    print("TCP Server connections: {}".format(server_tcp_connections))
+    
+    #return server_tcp_connections    
     
 
 def leader_noleader_send(msg, server_tcp_connections):
+    print("stc: {}".format(server_tcp-connections))
     for socket in server_tcp_connections:
         socket.send(msg)
 
@@ -353,8 +358,7 @@ if __name__ == "__main__":
     variable = "Test"
     
 
-    
-    service_announcement(leader, server_list)
+    service_announcement(leader, server_list, server_tcp_connections)
     
     
     #udp_thread = threading.Thread(target=udp)
