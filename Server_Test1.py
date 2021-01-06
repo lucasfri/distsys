@@ -3,24 +3,20 @@ import threading
 from threading import Thread
 import time
 from sys import platform as _platform
-from turtledemo.minimal_hanoi import Disc
 import pickle
 import uuid
+import types
+from _ast import If
 #from smtplib import server
 
-
-
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "10.0.3.15"
+broadcast_ip = "10.0.3.255"
 discovery_port = 1236
 send_list_port = 1237
 udp_port = 1234
-tcp_port = 1235
+tcp_port = 1235 
 server_com_port = 1238
 buffer = 1024
-
-
-
 
 def service_announcement(leader, server_list, server_tcp_connections):  
     
@@ -46,7 +42,6 @@ def service_announcement(leader, server_list, server_tcp_connections):
             print(e)
             print("Nothing received")
             
-           
     sa_broadcast_socket.close()  
     
     
@@ -136,8 +131,8 @@ def server_discovery(server_list, server_tcp_connections):
     new_server.send(msg)
     print("sent serverlist to new server")
     send_list_socket.close()
-    #Serverliste an Nachbar übermitteln
-
+    #Serverliste von Leader an alle Noleader
+    leader_noleader_send(server_list)
     
     
     Thread(target=leader_noleader_tcp(leader, leader_ip), args=(leader, leader_ip)).start()
@@ -187,20 +182,52 @@ def leader_noleader_tcp(leader, leader_ip):
         print("Connected with leader.")
         
         while True:
-            last_sent_msg = server_com_socket.recv(buffer)
+            last_sent_msg = server_com_socket.recv(buffer).decode("UTF-8")
             print(last_sent_msg)
+            try:
+                if last_sent_msg.startswith('S'):
+                    last_sent_msg = last_sent_msg[2:]
+                    print(last_sent_msg)
+                    last_sent_msg = pickle.dumps(last_sent_msg)
+                    server_list = pickle.loads(last_sent_msg)
+                    print("recieved Ser", server_list)
+
+                elif last_sent_msg.startswith('C'):
+                    last_sent_msg = last_sent_msg[2:]
+                    last_sent_msg = pickle.dumps(last_sent_msg)
+                    server_list = pickle.loads(last_sent_msg)
+                elif last_sent_msg.startswith('M'):
+                    last_sent_msg = last_sent_msg[2:]
+                    last_sent_msg = pickle.dumps(last_sent_msg)
+                    server_list = pickle.loads(last_sent_msg)
+                
+            except pickle.UnpicklingError:    
+                print(last_sent_msg)
+                print("geht in den error")
         server_com_socket.close()
-        
     
     #return server_tcp_connections    
     
 
 def leader_noleader_send(msg):
     print("stc: {}".format(server_tcp_connections))
+    #check if msg is a list
+    if msg == server_list:
+        msg = pickle.dumps(msg)
+        #Kennung
+        msg = "%s:%s" % ("S", msg)
+    elif msg == clients:
+        msg = pickle.dumps(msg)
+        msg = "%s:%s" % ("C", msg)
+    elif msg == messages:
+        msg = pickle.dumps(msg)
+        msg = "%s:%s" % ("M", msg)
+
     for socket in server_tcp_connections:
-        socket.send(msg)
+        socket.send(msg.encode("UTF-8"))
 
 
+       
 
 def ring_formation(server_list):
     #threading.Timer(10.0, ring_formation).start()
@@ -247,10 +274,26 @@ def send_to_neighbour(message):
     send_neighbour_socket_socket.listen()
     send_neighbour_socket_socket.accept()
     
-    send_neighbour_socket.send(data)
+    send_neighbour_socket.send(message)
 
     send_neighbour_socket.close()
     
+def send_server_list_to_neighbour(server_list):
+    print("Send server list to neighbour")
+    send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    send_server_list_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+    send_server_list_neighbour_socket.bind((server_ip, send_list_port))
+    send_server_list_neighbour_socket.listen()
+    send_server_list_neighbour_socket.accept()
+    
+    #Serverliste von Leader an alle Noleader
+    msg = pickle.dumps(server_list)
+    print("Serverliste, die an alle noleader gesendet wird: ", msg)
+    send_server_list_neighbour_socket.send(msg)
+    print("sent serverlist to new server")
+    send_server_list_neighbour_socket.close()
 
 #Create UDP socket, listen for broadcast, transmit own address
 def client_discovery(): 

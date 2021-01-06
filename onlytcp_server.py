@@ -1,13 +1,13 @@
 import threading
 import socket
 import sys
-from test.test_decimal import file
+
 
 # Create a TCP/IP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Bind the socket to the address given on the command line
-server_name = "192.168.0.220"
+server_name = "192.168.56.102"
 server_address = (server_name, 10000)
 print('Server gestartet auf %s mit Port %s' % server_address)
 server.bind(server_address)
