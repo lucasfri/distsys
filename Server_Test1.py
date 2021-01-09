@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "10.0.3.15"
-broadcast_ip = "10.0.3.255"
+server_ip = "192.168.56.12"
+broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -180,7 +180,8 @@ def heartbeat():
         import itertools
         "".join(itertools.takewhile(lambda x: x!=",", check))
         print(check)
-
+        
+        leader_ip2 = "'" + leader_ip + "'"
 
         #try:
         while True:
@@ -188,12 +189,17 @@ def heartbeat():
             print(check, ack)
             if ack != check:
                 print("Old server_list: {}".format(server_list))
-                index = server_list.index(check)
-                #get first element of tuple
+                #index = server_list.index(check)
                 server_list.remove(noleader_address[0])
+                server_msg_connections.remove(noleader_address[0])
+                server_sl_connections.remove(noleader_address[0])
+                server_cl_connections.remove(noleader_address[0])
+                print("Server {} not reachable anymore, deleted its IP from lists".format(noleader_address[0]))
+                time.sleep(3)
                 leader_noleader_send_serverlist()
+                
                 print("New server_list: {}".format(server_list))
-                continue
+                break
             else:
                 print(ack)
         
@@ -257,7 +263,7 @@ def leader_noleader_msg_tcp():
         noleader, noleader_address = server_msg_socket.accept()
         
         #server_tcp_connections.append(noleader)
-        server_msg_connections.append(noleader)
+        server_msg_connections.append(noleader_address[0])
         print("MSG TCP server connections: {}".format(server_msg_connections))
         
         
@@ -303,7 +309,7 @@ def leader_noleader_sl_tcp():
         noleader, noleader_address = server_sl_socket.accept()
         
         #server_tcp_connections.append(noleader)
-        server_sl_connections.append(noleader)
+        server_sl_connections.append(noleader_address[0])
         print("SL TCP server connections: {}".format(server_sl_connections))
         
         
@@ -347,7 +353,7 @@ def leader_noleader_cl_tcp():
         noleader, noleader_address = server_cl_socket.accept()
         
         #server_tcp_connections.append(noleader)
-        server_cl_connections.append(noleader)
+        server_cl_connections.append(noleader_address[0])
         print("CL TCP server connections: {}".format(server_cl_connections))
         
         
@@ -372,11 +378,10 @@ def leader_noleader_send_msg(msg):
 
     global server_msg_connections
     
-    for socket in server_msg_connections:
-        socket.send(msg.encode("UTF-8"))
+    for thesocket in server_msg_connections:
+        thesocket.send(msg.encode("UTF-8"))
     print("last message transfered to noleaders.")
 
-def leader_noleader_send_serverlist():
     
     global server_sl_connections
     global server_list
@@ -385,8 +390,8 @@ def leader_noleader_send_serverlist():
     msg = pickle.dumps(server_list)
     print(msg)
 
-    for socket in server_sl_connections:
-        socket.send(msg)
+    for serverinsl in server_sl_connections:
+        thesocket.send(msg)
     print("serverlist transfered to noleaders.")
         
 def leader_noleader_send_clientlist():
@@ -613,11 +618,11 @@ if __name__ == "__main__":
         print("Nolead loop")
         ring_formation()
         Thread(target=leader_noleader_msg_tcp, args=()).start()  
-        time.sleep(0.1)
+        time.sleep(1)
         Thread(target=leader_noleader_sl_tcp, args=()).start()
-        time.sleep(0.1)
+        time.sleep(2)
         Thread(target=leader_noleader_cl_tcp, args=()).start()
-        time.sleep(0.1)
+        time.sleep(3)
         Thread(target=heartbeat, args=()).start()
 
 
