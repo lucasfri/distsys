@@ -133,9 +133,9 @@ def server_discovery():
     #Serverliste von Leader an alle Noleader
     leader_noleader_send_serverlist()
     
-    Thread(target=leader_noleader_msg_tcp(), args=()).start()
-    Thread(target=leader_noleader_sl_tcp(), args=()).start()
-    Thread(target=leader_noleader_cl_tcp(), args=()).start()
+    Thread(target=leader_noleader_msg_tcp, args=()).start()
+    Thread(target=leader_noleader_sl_tcp, args=()).start()
+    Thread(target=leader_noleader_cl_tcp, args=()).start()
     Thread(target=server_discovery(), args=()).start()
     
     ring_formation(server_list)
@@ -511,10 +511,8 @@ if __name__ == "__main__":
     else:
         print("Nolead loop")
         ring_formation()
-        Thread(target=leader_noleader_msg_tcp, args=()).start() 
-        time.sleep(0.1) 
+        Thread(target=leader_noleader_msg_tcp, args=()).start()  
         Thread(target=leader_noleader_sl_tcp, args=()).start()
-        time.sleep(0.1)
         Thread(target=leader_noleader_cl_tcp, args=()).start()
         
 
