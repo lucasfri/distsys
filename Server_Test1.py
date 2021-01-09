@@ -7,7 +7,7 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.56.12"
+server_ip = "192.168.56.3"
 broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
@@ -136,8 +136,8 @@ def server_discovery():
     print("sent serverlist to new server")
     send_list_socket.close()
     #Serverliste von Leader an alle Noleader
-    leader_noleader_send_serverlist()
-    
+    #leader_noleader_send_serverlist()
+
     Thread(target=leader_noleader_msg_tcp, args=()).start()
     time.sleep(0.1)
     Thread(target=leader_noleader_sl_tcp, args=()).start()
@@ -161,7 +161,6 @@ def heartbeat():
     heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
         heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        
     
     if leader == True:
 
@@ -196,7 +195,7 @@ def heartbeat():
                 server_cl_connections.remove(noleader_address[0])
                 print("Server {} not reachable anymore, deleted its IP from lists".format(noleader_address[0]))
                 time.sleep(3)
-                leader_noleader_send_serverlist()
+                #leader_noleader_send_serverlist()
                 
                 print("New server_list: {}".format(server_list))
                 break
