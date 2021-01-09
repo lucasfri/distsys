@@ -4,24 +4,25 @@ from threading import Thread
 import time
 from sys import platform as _platform
 import pickle
-import uuid
-import types
-from _ast import If
+
 #from smtplib import server
 
 server_ip = "192.168.0.220"
-broadcast_ip = "192.168.255"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
 server_sl_port = 1240
-server_cl_port = 1241
+server_cl_port = 1242
 udp_port = 1234
 tcp_port = 1235 
 server_com_port = 1238
 buffer = 1024
 
-def service_announcement(leader, server_list, server_msg_connections):  
+def service_announcement():
+    
+    global server_list
+    global leader
     
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -54,8 +55,8 @@ def service_announcement(leader, server_list, server_msg_connections):
         server_list.append(server_ip)
         print("I am the first server and leader.")
         print(server_list)
-        Thread(target=client_discovery, args=()).start()
-        Thread(target=server_discovery(server_list, server_msg_connections), args=(server_list, )).start()
+        #Thread(target=client_discovery, args=()).start()
+        #Thread(target=server_discovery(server_list, server_msg_connections), args=(server_list, )).start()
         
     #Wenn Antwort kommt wird die Ringformation gestartet
     else:
@@ -69,29 +70,15 @@ def service_announcement(leader, server_list, server_msg_connections):
         recv_serverlist_socket.close()
         print("Received serverlist:")
         print(server_list)
-        print("Starting Ring formation")
-        ring_formation(server_list)
-        
-        
-        print("Starting TCP connection for server message transfer")
-               
-        print("Starting TCP connection for server serverlist transfer")
-        
-        print("Starting TCP connection for server clientlist transfer") 
-        
-        
-        Thread(target=leader_noleader_msg_tcp(False, leader_response), args=(False, leader_response)).start()
-       
-        Thread(target=leader_noleader_sl_tcp(False, leader_response), args=(False, leader_response)).start()
-
-        Thread(target=leader_noleader_cl_tcp(False, leader_response), args=(False, leader_response)).start()
 
 
     
-def server_discovery(server_list, server_msg_connections): 
+def server_discovery(): 
     
-    leader = True  
-    leader_ip = server_ip 
+    global server_list
+    global server_msg_connections
+    global leader
+
     
     recv_sa_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -140,17 +127,16 @@ def server_discovery(server_list, server_msg_connections):
 
     #Serverliste an neuen Server übermitteln
     msg = pickle.dumps(server_list)
-    print(msg)
     new_server.send(msg)
     print("sent serverlist to new server")
     send_list_socket.close()
     #Serverliste von Leader an alle Noleader
-    #leader_noleader_sl_tcp(server_list, server_ip)
+    leader_noleader_send_serverlist()
     
-    Thread(target=leader_noleader_msg_tcp(leader, leader_ip), args=(leader, leader_ip)).start()
-    Thread(target=leader_noleader_sl_tcp(leader, leader_ip), args=(leader, leader_ip)).start()
-    Thread(target=leader_noleader_cl_tcp(leader, leader_ip), args=(leader, leader_ip)).start()
-    Thread(target=server_discovery(server_list, server_msg_connections), args=(server_list, server_msg_connections)).start()
+    Thread(target=leader_noleader_msg_tcp(), args=()).start()
+    Thread(target=leader_noleader_sl_tcp(), args=()).start()
+    Thread(target=leader_noleader_cl_tcp(), args=()).start()
+    Thread(target=server_discovery(), args=()).start()
     
     ring_formation(server_list)
 
@@ -164,7 +150,12 @@ def server_discovery(server_list, server_msg_connections):
     
     #return server_list
 
-def leader_noleader_msg_tcp(leader, leader_ip):
+def leader_noleader_msg_tcp():
+    
+    global leader
+    global leader_ip
+    global server_msg_connections
+    global messages
     
     server_msg_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -192,119 +183,142 @@ def leader_noleader_msg_tcp(leader, leader_ip):
     else:
         
         server_msg_socket.connect((leader_ip, server_msg_port))
-        print("Connected with leader.")
-        
-        Thread(target=leader_noleader_sl_tcp(False, leader_ip), args=(False, leader_ip)).start()
-        
+        print("Server msg tcp connected.")
+                    
         while True:
             last_sent_msg = server_msg_socket.recv(buffer).decode("UTF-8")
             messages.append(last_sent_msg)
             print(last_sent_msg)
+
 
         server_msg_socket.close()
 
     
     #return server_tcp_connections   
     
-def leader_noleader_sl_tcp(leader, leader_ip):
+def leader_noleader_sl_tcp():
     
-        server_sl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    global leader
+    global leader_ip
+    global server_sl_connections
+    
+    server_sl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
 
-        if leader == True:
+    if leader == True:
 
-            server_sl_socket.bind((leader_ip, server_sl_port))
-            server_sl_socket.listen()
-            print("server_sl_socket erstellt")
-            
-            noleader, noleader_address = server_sl_socket.accept()
-            
-            #server_tcp_connections.append(noleader)
-            server_sl_connections.append(noleader)
-            print("TCP Server connections: {}".format(server_sl_connections))
-            
-            
-            print("Connected with noleader {}".format(noleader))
-            print("Connected with noleader {}".format(noleader_address)) 
+        server_sl_socket.bind((leader_ip, server_sl_port))
+        server_sl_socket.listen()
+        print("server_sl_socket erstellt")
         
-          
-     
-        else:   
+        noleader, noleader_address = server_sl_socket.accept()
+        
+        #server_tcp_connections.append(noleader)
+        server_sl_connections.append(noleader)
+        print("TCP Server connections: {}".format(server_sl_connections))
+        
+        
+        print("Connected with noleader {}".format(noleader))
+        print("Connected with noleader {}".format(noleader_address)) 
+    
+      
+ 
+    else:   
+            
+        server_sl_socket.connect((leader_ip, server_sl_port))
+        sl = server_sl_socket
+        print("Server sl tcp connected.")
+        
+        while True:
+            last_sent_sl = server_sl_socket.recv(buffer)
+            server_list = pickle.loads(last_sent_sl)
+            print("received serverlist", server_list)
+
+        
+def leader_noleader_cl_tcp():
+    
+    global leader
+    global leader_ip
+    global server_cl_connections
+    global client_list
+    
+    
+    server_cl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
                 
-            server_sl_socket.connect((leader_ip, server_sl_port))
-            print("Server sl tcp connected.")
-            while True:
-                last_sent_sl = server_sl_socket.recv(buffer)
-                last_sent_sl = pickle.dumps(last_sent_sl)
-                server_list = pickle.loads(last_sent_sl)
-                print("recieved Serverlist", server_list)
 
-        
-def leader_noleader_cl_tcp(leader, leader_ip):
-        server_cl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        
-                
+    if leader == True:
 
-        if leader == True:
-
-            server_cl_socketl_socket.bind((leader_ip, server_cl_port))
-            server_cl_socket.listen()
-            print("server_cl_socket erstellt")
-            
-            noleader, noleader_address = server_cl_socket.accept()
-            
-            #server_tcp_connections.append(noleader)
-            server_cl_connections.append(noleader)
-            print("TCP Server connections: {}".format(server_cl_connections))
-            
-            
-            print("Connected with noleader {}".format(noleader))
-            print("Connected with noleader {}".format(noleader_address)) 
+        server_cl_socket.bind((leader_ip, server_cl_port))
+        server_cl_socket.listen()
+        print("server_cl_socket erstellt")
         
-          
-     
-        else:   
-                
-            server_cl_socket.connect((leader_ip, server_cl_port))
+        noleader, noleader_address = server_cl_socket.accept()
+        
+        #server_tcp_connections.append(noleader)
+        server_cl_connections.append(noleader)
+        print("TCP Server connections: {}".format(server_cl_connections))
+        
+        
+        print("Connected with noleader {}".format(noleader))
+        print("Connected with noleader {}".format(noleader_address)) 
+    
+      
+ 
+    else:   
             
-            while True:
-                last_sent_cl = server_cl_socket.recv(buffer)
-                last_sent_cl = pickle.dumps(last_sent_cl)
-                client_list = pickle.loads(last_sent_cl)
-                print("recieved clientlist", client_list)
+        server_cl_socket.connect((leader_ip, server_cl_port))
+        cl = server_cl_socket
+        print("Server cl tcp connected.")
+        
+        while True:
+            last_sent_cl = server_cl_socket.recv(buffer)
+            client_list = pickle.loads(last_sent_cl)
+            print("recieved clientlist", client_list)
 
 
 
 def leader_noleader_send_msg(msg):
 
+    global server_msg_connections
     
     for socket in server_msg_connections:
         socket.send(msg.encode("UTF-8"))
     print("last message transfered to noleaders.")
 
-def leader_noleader_send_serverlist(msg):
+def leader_noleader_send_serverlist():
+    
+    global server_sl_connections
+    global server_list
+    
+    print(server_list)
+    msg = pickle.dumps(server_list)
+    print(msg)
 
-    msg = pickle.dumps(msg)
-
-    for socket in server_tcp_connections:
+    for socket in server_sl_connections:
         socket.send(msg)
     print("serverlist transfered to noleaders.")
         
-def leader_noleader_send_clientlist(msg):
+def leader_noleader_send_clientlist():
+    
+    global server_cl_connections
+    global client_list
+    
+    msg = pickle.dumps(client_list)
 
-    msg = pickle.dumps(msg)
-
-    for socket in server_tcp_connections:
+    for socket in server_cl_connections:
         socket.send(msg)
     print("clientlist transfered to noleaders.")
+
+        
+        
+def ring_formation():
     
-        
-        
-def ring_formation(server_list):
+    global server_list
     #threading.Timer(10.0, ring_formation).start()
     print("Ring formation started.") 
     sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
@@ -345,15 +359,15 @@ def send_to_neighbour(message):
     send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     send_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
-    send_neighbour_socket_socket.bind((server_ip, send_list_port))
-    send_neighbour_socket_socket.listen()
-    send_neighbour_socket_socket.accept()
+    send_neighbour_socket.bind((server_ip, send_list_port))
+    send_neighbour_socket.listen()
+    send_neighbour_socket.accept()
     
     send_neighbour_socket.send(message)
 
     send_neighbour_socket.close()
     
-def send_server_list_to_neighbour(server_list):
+'''def send_server_list_to_neighbour(server_list):
     print("Send server list to neighbour")
     send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -368,7 +382,7 @@ def send_server_list_to_neighbour(server_list):
     print("Serverliste, die an alle noleader gesendet wird: ", msg)
     send_server_list_neighbour_socket.send(msg)
     print("sent serverlist to new server")
-    send_server_list_neighbour_socket.close()
+    send_server_list_neighbour_socket.close()'''
 
 #Create UDP socket, listen for broadcast, transmit own address
 def client_discovery(): 
@@ -381,7 +395,7 @@ def client_discovery():
         udp_socket.bind((broadcast_ip, udp_port))
         # linux 
     elif _platform == "win32" or _platform == "win64":
-         udp_socket.bind((server_ip, udp_port))
+        udp_socket.bind((server_ip, udp_port))
     
     #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -406,6 +420,7 @@ def client_discovery():
 
 def connect():
     
+    global client_list
         #TCP connection  
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -428,22 +443,23 @@ def connect():
     client.send('NICK'.encode('ascii'))
     nickname = client.recv(1024).decode('ascii')
     nicknames.append(nickname)
-    client_list.append(client)
-    leader_noleader_cl_tcp(client_list, server_ip)
+    client_list.append(client_address)
+    client_sockets.append(client)
+    leader_noleader_send_clientlist()
 
     # Benutzername mitteilen und broadcasten
     print("Der Benutzername ist {}".format(nickname))
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
     client.send('Mit dem Server verbunden!'.encode('ascii'))
     
-         # Start Handling Thread For Client
+#Start Handling Thread For Client
     Thread(target=messaging(client), args=(client, )).start()
 
 
 
 def broadcast(message): #um Nachrichten  zu den Clients zu senden
-    for client in client_list:
-        client.send(message)
+    for client in client_sockets:
+        (client).send(message)
 
 
 
@@ -471,50 +487,43 @@ if __name__ == "__main__":
     
     server_list = []
     client_list = []
+    client_sockets = []
     nicknames = []
     messages = []
     server_msg_connections = []
     server_sl_connections = []
     server_cl_connections = []
     neighbour = 0
-    leader = ""
+    leader = False
+    leader_ip = ""
     variable = "Test"
     last_sent_msg = "Welcome!"
     
 
-    service_announcement(leader, server_list, server_msg_connections)
+    service_announcement()
     
-    
-    #udp_thread = threading.Thread(target=udp)
-    #udp_thread.start()
-    
-    #tcp_thread = threading.Thread(target=connect)
-    #tcp_thread.start()
+    if leader == True:
+        print("Lead loop")
+        Thread(target=client_discovery, args=()).start()
+        Thread(target=server_discovery, args=()).start()
 
-
-    
-    #ACCEPT_THREAD = Thread(target=server_discovery())
-
-   # ACCEPT_THREAD.start()
-    #ACCEPT_THREAD.join()
-    
-    
-
-    #while True:
         
-     #   try:
-      #      client_discovery()
-    
-       # except:
-        #    continue
-            
-        #connect()
+    else:
+        print("Nolead loop")
+        ring_formation()
+        Thread(target=leader_noleader_msg_tcp, args=()).start() 
+        time.sleep(0.1) 
+        Thread(target=leader_noleader_sl_tcp, args=()).start()
+        time.sleep(0.1)
+        Thread(target=leader_noleader_cl_tcp, args=()).start()
+        
 
                 
     print(client_list)
     print(nicknames)
     print(messages)
 
+    time.sleep(60)
         
         
 #Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
