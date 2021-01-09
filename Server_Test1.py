@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "10.0.3.15"
+broadcast_ip = "10.0.3.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -139,9 +139,13 @@ def server_discovery():
     leader_noleader_send_serverlist()
     
     Thread(target=leader_noleader_msg_tcp, args=()).start()
+    time.sleep(0.1)
     Thread(target=leader_noleader_sl_tcp, args=()).start()
+    time.sleep(0.1)
     Thread(target=leader_noleader_cl_tcp, args=()).start()
-    Thread(target=heartbeat, args=()).start()    
+    time.sleep(0.1)
+    Thread(target=heartbeat, args=()).start()
+    time.sleep(0.1)    
     Thread(target=server_discovery(), args=()).start()
     
     ring_formation(server_list)
@@ -154,20 +158,22 @@ def heartbeat():
 
     
     heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    heartbeat.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
-        heartbeat.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
     
     if leader == True:
 
         heartbeat_socket.bind((leader_ip, heartbeat_port))
         heartbeat_socket.listen()
-        print("server_msg_socket erstellt")
+        print("heartbeat_msg_socket erstellt")
         
         noleader, noleader_address = heartbeat_socket.accept()
         
         heartbeat_connections.append(noleader)
+
+        heartbeat_socket.send("Heartbeat started for me.".encode("UTF-8"))
 
         while True:
             ack = heartbeat_socket.recv(buffer)
@@ -177,12 +183,14 @@ def heartbeat():
      
     else:
         try:
+            time.sleep(1)
             heartbeat_socket.connect((leader_ip, heartbeat_port))
             print("Heartbeat TCP connected.")
+            ack2 = heartbeat_socket.recv(buffer).decode("UTF-8")
+            print(ack2)
         except:
             print("Heartbeat connection refused")
-            
-        
+            #muss noch was passieren
             
         while True:
             try:
@@ -229,7 +237,7 @@ def leader_noleader_msg_tcp():
           
      
     else:
-        
+        time.sleep(1)
         server_msg_socket.connect((leader_ip, server_msg_port))
         print("Server msg tcp connected.")
                     
@@ -275,7 +283,7 @@ def leader_noleader_sl_tcp():
       
  
     else:   
-            
+        time.sleep(1)    
         server_sl_socket.connect((leader_ip, server_sl_port))
         print("Server sl tcp connected.")
         
@@ -319,7 +327,7 @@ def leader_noleader_cl_tcp():
       
  
     else:   
-            
+        time.sleep(1)    
         server_cl_socket.connect((leader_ip, server_cl_port))
         print("Server cl tcp connected.")
         
@@ -575,9 +583,13 @@ if __name__ == "__main__":
         print("Nolead loop")
         ring_formation()
         Thread(target=leader_noleader_msg_tcp, args=()).start()  
+        time.sleep(0.1)
         Thread(target=leader_noleader_sl_tcp, args=()).start()
+        time.sleep(0.1)
         Thread(target=leader_noleader_cl_tcp, args=()).start()
-        
+        time.sleep(0.1)
+        Thread(target=heartbeat, args=()).start()
+
 
                 
     print(client_list)
