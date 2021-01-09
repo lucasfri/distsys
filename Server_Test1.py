@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "10.0.3.15"
+broadcast_ip = "10.0.3.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -176,28 +176,31 @@ def heartbeat():
 
         noleader.send("Heartbeat started for me.".encode("UTF-8"))
         
-        check = noleader.recv(buffer)
+        check = noleader.recv(buffer).decode("UTF-8")
+        import itertools
+        "".join(itertools.takewhile(lambda x: x!=",", check))
         print(check)
 
 
         #try:
         while True:
-            ack = noleader.recv(buffer)
+            ack = noleader.recv(buffer).decode("UTF-8")
+            print(check, ack)
             if ack != check:
                 print("Old server_list: {}".format(server_list))
-                index = server_list.index(noleader_address)
+                index = server_list.index(check)
                 #get first element of tuple
-                noleader_ip = noleader_address()[0]
-                server_list.remove(noleader_ip)
+                server_list.remove(noleader_address[0])
                 leader_noleader_send_serverlist()
                 print("New server_list: {}".format(server_list))
                 continue
             else:
                 print(ack)
-        '''if len(ack) != 0:
-               print("heartbeat received from {}".format(ack))
-   
-           else:
+        
+            '''if len(ack) != 0:
+                   print("heartbeat received from {}".format(ack))
+       
+            else:
                print("Old server_list: {}".format(server_list))
                index = server_list.index(server_address)
                server_list.remove(noleader_address)
