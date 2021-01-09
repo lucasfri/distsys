@@ -14,6 +14,7 @@ send_list_port = 1237
 server_msg_port = 1239
 server_sl_port = 1240
 server_cl_port = 1242
+heartbeat_port = 1243
 udp_port = 1234
 tcp_port = 1235 
 server_com_port = 1238
@@ -23,6 +24,7 @@ def service_announcement():
     
     global server_list
     global leader
+    global leader_ip
     
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -35,13 +37,12 @@ def service_announcement():
     print("Following was broadcasted: ", data)
     
     # 3 Sekunden warten ob Antwort auf Broadcast kommt.
-    leader_response = ""
 
-    sa_broadcast_socket.settimeout(3)
+    sa_broadcast_socket.settimeout(1)
     try:
         print("listening for other servers responses...")
-        leader_response = sa_broadcast_socket.recv(buffer).decode("UTF-8")
-        print("Leader response received on {}".format(leader_response))
+        leader_ip = sa_broadcast_socket.recv(buffer).decode("UTF-8")
+        print("Leader response received on {}".format(leader_ip))
     except socket.timeout as e:
             print(e)
             print("Nothing received")
@@ -50,8 +51,9 @@ def service_announcement():
     
     
     #Wenn keine Antwort dann ernennt sich der Server zum Leader und startet server discovery und client discovery
-    if len(leader_response) == 0:
+    if len(leader_ip) == 0:
         leader = True
+        leader_ip = server_ip
         server_list.append(server_ip)
         print("I am the first server and leader.")
         print(server_list)
@@ -63,7 +65,7 @@ def service_announcement():
             #TCP Socket fuer den Empfang der Serverliste
         recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        recv_serverlist_socket.connect((leader_response, send_list_port))
+        recv_serverlist_socket.connect((leader_ip, send_list_port))
         
         msg = recv_serverlist_socket.recv(buffer)
         server_list = pickle.loads(msg)
@@ -139,19 +141,60 @@ def server_discovery():
     Thread(target=leader_noleader_msg_tcp, args=()).start()
     Thread(target=leader_noleader_sl_tcp, args=()).start()
     Thread(target=leader_noleader_cl_tcp, args=()).start()
+    Thread(target=heartbeat, args=()).start()    
     Thread(target=server_discovery(), args=()).start()
     
     ring_formation(server_list)
 
- 
+def heartbeat():
     
-    #else:
-        #print("Error: Received unknown message.")
+    global leader
+    global leader_ip
 
 
     
+    heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    heartbeat.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        heartbeat.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
     
-    #return server_list
+    if leader == True:
+
+        heartbeat_socket.bind((leader_ip, heartbeat_port))
+        heartbeat_socket.listen()
+        print("server_msg_socket erstellt")
+        
+        noleader, noleader_address = heartbeat_socket.accept()
+        
+        heartbeat_connections.append(noleader)
+
+        while True:
+            ack = heartbeat_socket.recv(buffer)
+            print("heartbeat received from {}".format(ack))
+        
+          
+     
+    else:
+        try:
+            heartbeat_socket.connect((leader_ip, heartbeat_port))
+            print("Heartbeat TCP connected.")
+        except:
+            print("Heartbeat connection refused")
+            
+        
+            
+        while True:
+            try:
+                heartbeat_socket.send(server_ip.encode("UTF-8"))
+
+            except:
+                print("Connection to noleader lost")
+                server_list.remove(leader_ip)
+                Thread(target=ring_formation(), args=()).start()
+            time.sleep(10)
+            
+
 
 def leader_noleader_msg_tcp():
     
@@ -177,10 +220,10 @@ def leader_noleader_msg_tcp():
         
         #server_tcp_connections.append(noleader)
         server_msg_connections.append(noleader)
-        print("TCP Server connections: {}".format(server_msg_connections))
+        print("MSG TCP server connections: {}".format(server_msg_connections))
         
         
-        print("Connected with noleader {}".format(noleader))
+        #print("Connected with noleader {}".format(noleader))
         print("Connected with noleader {}".format(noleader_address)) 
         
           
@@ -223,10 +266,10 @@ def leader_noleader_sl_tcp():
         
         #server_tcp_connections.append(noleader)
         server_sl_connections.append(noleader)
-        print("TCP Server connections: {}".format(server_sl_connections))
+        print("SL TCP server connections: {}".format(server_sl_connections))
         
         
-        print("Connected with noleader {}".format(noleader))
+        #print("Connected with noleader {}".format(noleader))
         print("Connected with noleader {}".format(noleader_address)) 
     
       
@@ -267,10 +310,10 @@ def leader_noleader_cl_tcp():
         
         #server_tcp_connections.append(noleader)
         server_cl_connections.append(noleader)
-        print("TCP Server connections: {}".format(server_cl_connections))
+        print("CL TCP server connections: {}".format(server_cl_connections))
         
         
-        print("Connected with noleader {}".format(noleader))
+        #print("Connected with noleader {}".format(noleader))
         print("Connected with noleader {}".format(noleader_address)) 
     
       
@@ -460,7 +503,7 @@ def connect():
     client.send('Mit dem Server verbunden!'.encode('ascii'))
     
 #Start Handling Thread For Client
-    Thread(target=messaging(client, client_address), args=(client, )).start()
+    Thread(target=messaging(client, client_address), args=(client, client_address)).start()
 
 
 
@@ -509,12 +552,13 @@ if __name__ == "__main__":
     client_sockets = []
     nicknames = []
     messages = []
+    heartbeat_connections = []
     server_msg_connections = []
     server_sl_connections = []
     server_cl_connections = []
     neighbour = 0
     leader = False
-    leader_ip = "192.168.0.46"
+    leader_ip = ""
     variable = "Test"
     last_sent_msg = "Welcome!"
     
