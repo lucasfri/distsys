@@ -116,7 +116,10 @@ def server_discovery():
     
     #TCP connection aufbauen
     send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
 
     send_list_socket.bind((server_ip, send_list_port))
     send_list_socket.listen()
@@ -159,7 +162,9 @@ def leader_noleader_msg_tcp():
     
     server_msg_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        
     print(server_msg_connections)
     
     if leader == True:
@@ -204,7 +209,8 @@ def leader_noleader_sl_tcp():
     
     server_sl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
 
     if leader == True:
@@ -228,7 +234,6 @@ def leader_noleader_sl_tcp():
     else:   
             
         server_sl_socket.connect((leader_ip, server_sl_port))
-        sl = server_sl_socket
         print("Server sl tcp connected.")
         
         while True:
@@ -247,7 +252,8 @@ def leader_noleader_cl_tcp():
     
     server_cl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        server_cl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
                 
 
@@ -272,7 +278,6 @@ def leader_noleader_cl_tcp():
     else:   
             
         server_cl_socket.connect((leader_ip, server_cl_port))
-        cl = server_cl_socket
         print("Server cl tcp connected.")
         
         while True:
@@ -356,8 +361,10 @@ def get_neighbour(ring, own_ip, direction='left'):
 def send_to_neighbour(message):
     print("Send to neighbour")
     send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    #send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        send_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
     send_neighbour_socket.bind((server_ip, send_list_port))
     send_neighbour_socket.listen()
@@ -453,7 +460,7 @@ def connect():
     client.send('Mit dem Server verbunden!'.encode('ascii'))
     
 #Start Handling Thread For Client
-    Thread(target=messaging(client), args=(client, )).start()
+    Thread(target=messaging(client, client_address), args=(client, )).start()
 
 
 
@@ -463,25 +470,37 @@ def broadcast(message): #um Nachrichten  zu den Clients zu senden
 
 
 
-def messaging(client): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
-    #try:
-    message = client.recv(1024).decode("UTF-8") #Nachricht empfangen
-    messages.append(message)
-    leader_noleader_send_msg(message)
-    broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
     
-    Thread(target=messaging(client), args=(client)).start()
+    global client_sockets
+    global client_list
+    
+    try:
+        message = client.recv(1024).decode("UTF-8")
+        if len(message) != 0:
+            messages.append(message)
+            print(message)
+            leader_noleader_send_msg(message)
+            broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
-'''    except: #Sofern der Client keine Nachricht empfaengt
-        index = clients.index(client)
-        clients.remove(client) #Client wird von der Clientlist entfernt
-        client.close()
-        nickname = nicknames[index]
-        broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
-        nicknames.remove(nickname)'''
-    
-    
-    
+            Thread(target=messaging(client, client_address), args=(client, client_address)).start()
+        else:
+            print("Old client_list: {}".format(client_list))
+            index = client_sockets.index(client)
+            client_sockets.remove(client) #Client wird von der Clientlist entfernt
+            client.close()
+            index = client_list.index(client_address)
+            client_list.remove(client_address)
+            nickname = nicknames[index]
+            broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
+            nicknames.remove(nickname)
+            print("New client_list: {}".format(client_list))
+            print("client removed")
+            
+
+    except: #Sofern der Client keine Nachricht empfaeng
+        print("Except.")
+
 
 if __name__ == "__main__":
     
@@ -495,7 +514,7 @@ if __name__ == "__main__":
     server_cl_connections = []
     neighbour = 0
     leader = False
-    leader_ip = ""
+    leader_ip = "192.168.0.46"
     variable = "Test"
     last_sent_msg = "Welcome!"
     
