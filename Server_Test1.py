@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "10.0.3.15"
-broadcast_ip = "10.0.3.255"
+server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -154,9 +154,9 @@ def heartbeat():
     
     global leader
     global leader_ip
+    global server_list
 
 
-    
     heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
@@ -170,31 +170,58 @@ def heartbeat():
         print("heartbeat_msg_socket erstellt")
         
         noleader, noleader_address = heartbeat_socket.accept()
+        print("Heartbeat socket connected")
         
-        heartbeat_connections.append(noleader)
+        #heartbeat_connections.append(noleader)
 
-        heartbeat_socket.send("Heartbeat started for me.".encode("UTF-8"))
+        noleader.send("Heartbeat started for me.".encode("UTF-8"))
+        
+        check = noleader.recv(buffer)
+        print(check)
 
+
+        #try:
         while True:
-            ack = heartbeat_socket.recv(buffer)
-            print("heartbeat received from {}".format(ack))
-        
-          
+            ack = noleader.recv(buffer)
+            if ack != check:
+                print("Old server_list: {}".format(server_list))
+                index = server_list.index(noleader_address)
+                #get first element of tuple
+                noleader_ip = noleader_address()[0]
+                server_list.remove(noleader_ip)
+                leader_noleader_send_serverlist()
+                print("New server_list: {}".format(server_list))
+                continue
+            else:
+                print(ack)
+        '''if len(ack) != 0:
+               print("heartbeat received from {}".format(ack))
+   
+           else:
+               print("Old server_list: {}".format(server_list))
+               index = server_list.index(server_address)
+               server_list.remove(noleader_address)
+               leader_noleader_send_serverlist()
+               print("New server_list: {}".format(server_list))'''
+                   
+       
+        #except: #Sofern der Client keine Nachricht empfaeng
+         #   print("Except.")
+
      
     else:
-        try:
-            time.sleep(1)
-            heartbeat_socket.connect((leader_ip, heartbeat_port))
-            print("Heartbeat TCP connected.")
-            ack2 = heartbeat_socket.recv(buffer).decode("UTF-8")
-            print(ack2)
-        except:
-            print("Heartbeat connection refused")
+        time.sleep(1)
+        heartbeat_socket.connect((leader_ip, heartbeat_port))
+        print("Heartbeat TCP connected.")
+        ack2 = heartbeat_socket.recv(buffer).decode("UTF-8")
+        print(ack2)
+
             #muss noch was passieren
             
         while True:
             try:
                 heartbeat_socket.send(server_ip.encode("UTF-8"))
+                print("heartbeat sent to leader")
 
             except:
                 print("Connection to noleader lost")
