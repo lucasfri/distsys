@@ -58,7 +58,7 @@ if __name__ == "__main__":
     #source https://pymotw.com/2/socket/tcp.html
     # Nutzernamen auswaehlen.
     nickname = input("Wie lautet ihr Benutzername? ")
-    
+     
     # Verbindung zum Server
     
     tcp_socket.connect((host_address, tcp_serverport))

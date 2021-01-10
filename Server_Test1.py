@@ -421,7 +421,7 @@ def ring_formation():
     sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
     print(sorted_ip_ring)
     print("Ring formation done")
-    
+     
     if sorted_ip_ring[0] == server_ip:
         leader = True
         leader_ip = server_ip
