@@ -196,15 +196,7 @@ def server_heartbeat():
                 break
             else:
                 print(ack)
-        '''if len(ack) != 0:
-               print("heartbeat received from {}".format(ack))
-   
-           else:
-               print("Old server_list: {}".format(server_list))
-               index = server_list.index(server_address)
-               server_list.remove(noleader_address)
-               leader_noleader_send_serverlist()
-               print("New server_list: {}".format(server_list))'''
+
                    
        
         #except: #Sofern der Client keine Nachricht empfaeng
@@ -512,6 +504,8 @@ def leader_election(sorted_ip_ring):
    
     else: 
         service_announcement()
+        print("Waiting for new leader to boot")
+        time.sleep(10)
         print("Nolead loop")
         #ring_formation()
         Thread(target=leader_noleader_msg_tcp, args=()).start()  
@@ -684,12 +678,12 @@ def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ei
             Thread(target=messaging(client, client_address), args=(client, client_address)).start()
         
         else:
-            broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
             print("client_removed")
             
 
-    except: #Sofern der Client keine Nachricht empfaeng
-        print("Except.")
+    except:
+        print("")
+
 
 
 if __name__ == "__main__":
@@ -727,7 +721,7 @@ if __name__ == "__main__":
         time.sleep(0.1)
         Thread(target=leader_noleader_cl_tcp, args=()).start()
         time.sleep(0.1)
-        Thread(target=heartbeat, args=()).start()
+        Thread(target=server_heartbeat, args=()).start()
 
 
                 

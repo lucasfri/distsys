@@ -78,10 +78,17 @@ def send():
     while True:
         if stop_threads ==  True: break
         else:
-            for element in tcp_sockets:
-                print("Enter message:")
-                message = '{}: {}'.format(nickname, input(''))
-                element.send(message.encode('ascii'))
+            try:
+                for element in tcp_sockets:
+                    print("Enter message:")
+                    message = '{}: {}'.format(nickname, input(''))
+                    element.send(message.encode('ascii'))
+            except:
+                print("Connection to Leader lost. Please try again.")
+                stop_threads = True
+                time.sleep(3)
+                udp()
+                break
 
             
         
