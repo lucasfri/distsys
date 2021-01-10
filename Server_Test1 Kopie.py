@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "192.168.56.102"
+broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -34,12 +34,13 @@ def service_announcement():
     
     #meine serverinformation an andere server schicken
     data = "%s:%s" % ("SA", server_ip)
+    time.sleep(15)
     sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
     
     # 3 Sekunden warten ob Antwort auf Broadcast kommt.
 
-    sa_broadcast_socket.settimeout(1)
+    sa_broadcast_socket.settimeout(10)
     try:
         print("listening for other servers responses...")
         leader_ip = sa_broadcast_socket.recv(buffer).decode("UTF-8")
@@ -342,6 +343,7 @@ def leader_noleader_sl_tcp():
     global leader_ip
     global server_sl_connections
     global stop_threads
+    global server_list
     
     server_sl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -503,6 +505,7 @@ def leader_election(sorted_ip_ring):
         Thread(target=server_discovery, args=()).start()
    
     else: 
+        leader_ip = ""
         service_announcement()
         print("Waiting for new leader to boot")
         time.sleep(10)
