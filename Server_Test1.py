@@ -574,31 +574,31 @@ def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ei
     global client_sockets
     global client_list
     
-    try:
-        message = client.recv(1024).decode("UTF-8")
-        if len(message) != 0:
-            messages.append(message)
-            print(message)
-            leader_noleader_send_msg(message)
-            broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+    #try:
+    message = client.recv(1024).decode("UTF-8")
+    if len(message) != 0:
+        messages.append(message)
+        print(message)
+        leader_noleader_send_msg(message)
+        broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
-            Thread(target=messaging(client, client_address), args=(client, client_address)).start()
-        else:
-            print("Old client_list: {}".format(client_list))
-            index = client_sockets.index(client)
-            client_sockets.remove(client) #Client wird von der Clientlist entfernt
-            client.close()
-            index = client_list.index(client_address)
-            client_list.remove(client_address)
-            nickname = nicknames[index]
-            broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
-            nicknames.remove(nickname)
-            print("New client_list: {}".format(client_list))
-            print("client removed")
+        Thread(target=messaging(client, client_address), args=(client, client_address)).start()
+    else:
+        print("Old client_list: {}".format(client_list))
+        index = client_sockets.index(client)
+        client_sockets.remove(client) #Client wird von der Clientlist entfernt
+        client.close()
+        index = client_list.index(client_address)
+        client_list.remove(client_address)
+        nickname = nicknames[index]
+        broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
+        nicknames.remove(nickname)
+        print("New client_list: {}".format(client_list))
+        print("client removed")
             
 
-    except: #Sofern der Client keine Nachricht empfaeng
-        print("Except.")
+    #except: #Sofern der Client keine Nachricht empfaeng
+       # print("Except.")
 
 
 if __name__ == "__main__":

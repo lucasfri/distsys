@@ -7,14 +7,15 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.56.3"
-broadcast_ip = "192.168.56.255"
+server_ip = "192.168.0.220"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
 server_sl_port = 1240
 server_cl_port = 1242
 heartbeat_port = 1243
+client_heartbeat_port = 1244
 udp_port = 1234
 tcp_port = 1235 
 server_com_port = 1238
@@ -144,13 +145,13 @@ def server_discovery():
     time.sleep(0.1)
     Thread(target=leader_noleader_cl_tcp, args=()).start()
     time.sleep(0.1)
-    Thread(target=heartbeat, args=()).start()
+    Thread(target=server_heartbeat, args=()).start()
     time.sleep(0.1)    
     Thread(target=server_discovery(), args=()).start()
     
     #ring_formation(server_list)
 
-def heartbeat():
+def server_heartbeat():
     
     global leader
     global leader_ip
@@ -234,6 +235,55 @@ def heartbeat():
             time.sleep(10)
             
         heartbeat_socket.close()
+        
+        
+def client_heartbeat():
+    
+    global leader
+    global leader_ip
+    global client_list
+    global stop_threads
+
+
+    client_heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        client_heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+
+
+    client_heartbeat_socket.bind((leader_ip, client_heartbeat_port))
+    client_heartbeat_socket.listen()
+    print("client heartbeat erstellt")
+    
+    
+    client, client_address = client_heartbeat_socket.accept()
+    print("client heartbeat socket connected")
+    
+    #heartbeat_connections.append(noleader)
+
+    client.send("Client heartbeat started for me.".encode("UTF-8"))
+    
+    check = client.recv(buffer)
+    print(check)
+
+
+    #try:
+    while True:
+        ack = client.recv(buffer)
+        if ack != check:
+            print("Old client_list: {}".format(client_list))
+            #index = server_list.index(noleader_address[0])
+            #get first element of tuple
+            client_ip = client_address[0]
+            client_list.remove(client_ip)
+            leader_noleader_send_clientlist()
+            client.close()
+            print("New client_list: {}".format(client_list))
+            break
+        else:
+            print(ack)
+                   
+
 
 def leader_noleader_msg_tcp():
     
@@ -560,6 +610,7 @@ def client_discovery():
     
     udp_socket2.sendto(str.encode(server_ip), client_address)
     print("Establishing connection")
+    Thread(target=client_heartbeat, args=()).start()
     Thread(target=client_discovery, args=()).start()
     Thread(target=connect, args=()).start()
 
@@ -589,8 +640,8 @@ def connect():
     # Anforderung des Benutzernamens und Speicherung dessen
     client.send('NICK'.encode('ascii'))
     nickname = client.recv(1024).decode('ascii')
-    nicknames.append(nickname)
-    client_list.append(client_address)
+    client_ip = client_address[0]
+    client_list.append(client_ip)
     client_sockets.append(client)
     leader_noleader_send_clientlist()
 
@@ -599,20 +650,27 @@ def connect():
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
     client.send('Mit dem Server verbunden!'.encode('ascii'))
     
+    blackboard_history_transfer(client)
 #Start Handling Thread For Client
     Thread(target=messaging(client, client_address), args=(client, client_address)).start()
 
-
-
+def blackboard_history_transfer(client):
+    
+    for message in messages:
+            client.send(("\n" + message).encode("UTF-8"))
+            
+            
 def broadcast(message): #um Nachrichten  zu den Clients zu senden
     for client in client_sockets:
-        (client).send(message)
+        try:
+            (client).send(message)
+        except:
+            continue
 
 
 
 def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
     
-    global client_sockets
     global client_list
     
     try:
@@ -624,18 +682,10 @@ def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ei
             broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
 
             Thread(target=messaging(client, client_address), args=(client, client_address)).start()
+        
         else:
-            print("Old client_list: {}".format(client_list))
-            index = client_sockets.index(client)
-            client_sockets.remove(client) #Client wird von der Clientlist entfernt
-            client.close()
-            index = client_list.index(client_address)
-            client_list.remove(client_address)
-            nickname = nicknames[index]
             broadcast(f'{nickname} hat das Blackboard verlassen'.encode('ascii'))
-            nicknames.remove(nickname)
-            print("New client_list: {}".format(client_list))
-            print("client removed")
+            print("client_removed")
             
 
     except: #Sofern der Client keine Nachricht empfaeng
@@ -647,7 +697,6 @@ if __name__ == "__main__":
     server_list = []
     client_list = []
     client_sockets = []
-    nicknames = []
     messages = []
     heartbeat_connections = []
     server_msg_connections = []
@@ -683,7 +732,6 @@ if __name__ == "__main__":
 
                 
     print(client_list)
-    print(nicknames)
     print(messages)
 
     time.sleep(60)
