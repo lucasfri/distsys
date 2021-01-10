@@ -235,6 +235,7 @@ def heartbeat():
             except:
                 print("Connection to leader lost")
                 server_list.remove(leader_ip)
+                print(server_list)
                 Thread(target=ring_formation(), args=()).start()
                 break
             time.sleep(10)
@@ -411,6 +412,9 @@ def leader_noleader_send_clientlist():
 def ring_formation():
     
     global server_list
+    global leader
+    global leader_ip
+    global server_ip
     #threading.Timer(10.0, ring_formation).start()
     print("Ring formation started.") 
     sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
@@ -422,6 +426,8 @@ def ring_formation():
         leader = True
         leader_ip = server_ip
         print("bin jetzt leader")
+    else: leader_ip = sorted_ip_ring[0]
+    
     
     get_neighbour(sorted_ip_ring, server_ip, "left")
 

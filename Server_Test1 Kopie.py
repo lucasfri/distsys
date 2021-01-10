@@ -7,8 +7,8 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.0.220"
-broadcast_ip = "192.168.0.255"
+server_ip = "192.168.56.102"
+broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -185,13 +185,13 @@ def heartbeat():
             ack = noleader.recv(buffer)
             if ack != check:
                 print("Old server_list: {}".format(server_list))
-                index = server_list.index(noleader_address)
+                #index = server_list.index(noleader_address[0])
                 #get first element of tuple
-                noleader_ip = noleader_address()[0]
+                noleader_ip = noleader_address[0]
                 server_list.remove(noleader_ip)
                 leader_noleader_send_serverlist()
                 print("New server_list: {}".format(server_list))
-                continue
+                break
             else:
                 print(ack)
         '''if len(ack) != 0:
@@ -252,6 +252,13 @@ def leader_noleader_msg_tcp():
         print("server_msg_socket erstellt")
         
         noleader, noleader_address = server_msg_socket.accept()
+        
+        noleader_ip = noleader_address[0]
+       # import itertools
+        #"".join(itertools.takewhile(lambda x: x!=",", noleader_ip))
+        #print(noleader_address)
+        
+        #noleader_ip = "'" + noleader_address + "'"
         
         #server_tcp_connections.append(noleader)
         server_msg_connections.append(noleader)
@@ -369,7 +376,9 @@ def leader_noleader_send_msg(msg):
     global server_msg_connections
     
     for socket in server_msg_connections:
-        socket.send(msg.encode("UTF-8"))
+        try:
+            socket.send(msg.encode("UTF-8"))
+        except: continue
     print("last message transfered to noleaders.")
 
 
@@ -383,7 +392,10 @@ def leader_noleader_send_serverlist():
     print(msg)
 
     for socket in server_sl_connections:
-        socket.send(msg)
+        try:
+            socket.send(msg)
+        except:
+            continue
     print("serverlist transfered to noleaders.")
         
         
@@ -395,7 +407,9 @@ def leader_noleader_send_clientlist():
     msg = pickle.dumps(client_list)
 
     for socket in server_cl_connections:
-        socket.send(msg)
+        try:
+            socket.send(msg)
+        except: continue
     print("clientlist transfered to noleaders.")
 
         
