@@ -7,7 +7,7 @@ import pickle
 
 #from smtplib import server
 
-server_ip = "192.168.56.3"
+server_ip = "192.168.56.102"
 broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
@@ -276,10 +276,10 @@ def leader_noleader_msg_tcp():
         server_msg_socket.connect((leader_ip, server_msg_port))
         print("Server msg tcp connected.")
                     
-        while True:
+        '''while True:
             last_sent_msg = server_msg_socket.recv(buffer).decode("UTF-8")
             messages.append(last_sent_msg)
-            print(last_sent_msg)
+            print(last_sent_msg)'''
 
 
         server_msg_socket.close()
@@ -322,10 +322,10 @@ def leader_noleader_sl_tcp():
         server_sl_socket.connect((leader_ip, server_sl_port))
         print("Server sl tcp connected.")
         
-        while True:
+        '''while True:
             last_sent_sl = server_sl_socket.recv(buffer)
             server_list = pickle.loads(last_sent_sl)
-            print("received serverlist", server_list)
+            print("received serverlist", server_list)'''
 
         
 def leader_noleader_cl_tcp():
@@ -366,10 +366,10 @@ def leader_noleader_cl_tcp():
         server_cl_socket.connect((leader_ip, server_cl_port))
         print("Server cl tcp connected.")
         
-        while True:
+        '''while True:
             last_sent_cl = server_cl_socket.recv(buffer)
             client_list = pickle.loads(last_sent_cl)
-            print("recieved clientlist", client_list)
+            print("recieved clientlist", client_list)'''
 
 
 
