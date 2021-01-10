@@ -148,13 +148,14 @@ def server_discovery():
     time.sleep(0.1)    
     Thread(target=server_discovery(), args=()).start()
     
-    ring_formation(server_list)
+    #ring_formation(server_list)
 
 def heartbeat():
     
     global leader
     global leader_ip
     global server_list
+    global stop_threads
 
 
     heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -226,10 +227,13 @@ def heartbeat():
             except:
                 print("Connection to noleader lost")
                 server_list.remove(leader_ip)
-                Thread(target=ring_formation(), args=()).start()
+                ring_formation()
+                stop_threads = True
+                
+                break
             time.sleep(10)
             
-
+        heartbeat_socket.close()
 
 def leader_noleader_msg_tcp():
     
@@ -237,6 +241,7 @@ def leader_noleader_msg_tcp():
     global leader_ip
     global server_msg_connections
     global messages
+    global stop_threads
     
     server_msg_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -276,11 +281,13 @@ def leader_noleader_msg_tcp():
         print("Server msg tcp connected.")
                     
         while True:
-            last_sent_msg = server_msg_socket.recv(buffer).decode("UTF-8")
-            if len(last_sent_msg) != 0:
-                messages.append(last_sent_msg)
-                print(last_sent_msg)
-
+            if stop_threads == True: break
+            else:
+                last_sent_msg = server_msg_socket.recv(buffer).decode("UTF-8")
+                if len(last_sent_msg) != 0:
+                    messages.append(last_sent_msg)
+                    print(last_sent_msg)
+            
 
         server_msg_socket.close()
 
@@ -292,6 +299,7 @@ def leader_noleader_sl_tcp():
     global leader
     global leader_ip
     global server_sl_connections
+    global stop_threads
     
     server_sl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_sl_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -323,12 +331,15 @@ def leader_noleader_sl_tcp():
         print("Server sl tcp connected.")
         
         while True:
-            last_sent_sl = server_sl_socket.recv(buffer)
-            try:
-                server_list = pickle.loads(last_sent_sl)
-                print("received serverlist", server_list)
-            except: continue
-
+            if stop_threads ==  True: break
+            else:    
+                last_sent_sl = server_sl_socket.recv(buffer)
+                try:
+                    server_list = pickle.loads(last_sent_sl)
+                    print("received serverlist", server_list)
+                except: continue
+            
+        server_sl_socket.close()    
         
 def leader_noleader_cl_tcp():
     
@@ -336,6 +347,7 @@ def leader_noleader_cl_tcp():
     global leader_ip
     global server_cl_connections
     global client_list
+    global stop_threads
     
     
     server_cl_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -369,13 +381,17 @@ def leader_noleader_cl_tcp():
         print("Server cl tcp connected.")
         
         while True:
-            last_sent_cl = server_cl_socket.recv(buffer)
-            try:
-                client_list = pickle.loads(last_sent_cl)
-                print("recieved clientlist", client_list)
-            except: continue
+            if stop_threads == True: 
+                break
+            else:
+                last_sent_cl = server_cl_socket.recv(buffer)
+                try:
+                    client_list = pickle.loads(last_sent_cl)
+                    print("recieved clientlist", client_list)
+                except: continue
 
-
+        server_cl_socket.close()
+    
 def leader_noleader_send_msg(msg):
 
     global server_msg_connections
@@ -429,8 +445,34 @@ def ring_formation():
     print(sorted_ip_ring)
     print("Ring formation done")
     get_neighbour(sorted_ip_ring, server_ip, "left")
+    leader_election(sorted_ip_ring)
 
+def leader_election(sorted_ip_ring):
+    global server_ip
+    global leader
+    global leader_ip
     
+    if sorted_ip_ring[0] == server_ip:
+        leader = True
+        leader_ip = server_ip
+        print("bin jetzt leader")
+        
+        Thread(target=client_discovery, args=()).start()
+        Thread(target=server_discovery, args=()).start()
+   
+    else: 
+        service_announcement()
+        print("Nolead loop")
+        #ring_formation()
+        Thread(target=leader_noleader_msg_tcp, args=()).start()  
+        time.sleep(0.1)
+        Thread(target=leader_noleader_sl_tcp, args=()).start()
+        time.sleep(0.1)
+        Thread(target=leader_noleader_cl_tcp, args=()).start()
+        time.sleep(0.1)
+        Thread(target=heartbeat, args=()).start()
+
+        
 
 def get_neighbour(ring, own_ip, direction='left'):
     own_ip_index = ring.index(own_ip) if own_ip in ring else -1 
@@ -616,6 +658,7 @@ if __name__ == "__main__":
     leader_ip = ""
     variable = "Test"
     last_sent_msg = "Welcome!"
+    stop_threads = False
     
 
     service_announcement()
@@ -628,7 +671,7 @@ if __name__ == "__main__":
         
     else:
         print("Nolead loop")
-        ring_formation()
+        #ring_formation()
         Thread(target=leader_noleader_msg_tcp, args=()).start()  
         time.sleep(0.1)
         Thread(target=leader_noleader_sl_tcp, args=()).start()
