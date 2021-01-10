@@ -185,7 +185,7 @@ def heartbeat():
         #try:
         while True:
             ack = noleader.recv(buffer).decode("UTF-8")
-            print(check, ack)
+            print("I have checked {} which is the initial heartbeat msg against {} which is the hb msg I receive every 3 seconds.".format(check, ack))
             if ack != check:
                 print("Old server_list: {}".format(server_list))
                 #index = server_list.index(check)
@@ -226,15 +226,17 @@ def heartbeat():
 
             #muss noch was passieren
             
+        #dashier macht der noleader    
         while True:
             try:
                 heartbeat_socket.send(server_ip.encode("UTF-8"))
                 print("heartbeat sent to leader")
 
             except:
-                print("Connection to noleader lost")
+                print("Connection to leader lost")
                 server_list.remove(leader_ip)
                 Thread(target=ring_formation(), args=()).start()
+                break
             time.sleep(10)
             
 
@@ -375,7 +377,7 @@ def leader_noleader_cl_tcp():
 
 def leader_noleader_send_msg(msg):
 
-    global server_msg_connections
+   ''' global server_msg_connections
     
     for thesocket in server_msg_connections:
         thesocket.send(msg.encode("UTF-8"))
@@ -391,15 +393,15 @@ def leader_noleader_send_msg(msg):
 
     for serverinsl in server_sl_connections:
         thesocket.send(msg)
-    print("serverlist transfered to noleaders.")
+    print("serverlist transfered to noleaders.")'''
         
 def leader_noleader_send_clientlist():
     
     global server_cl_connections
     global client_list
     
+    print("Client list: ", client_list)
     msg = pickle.dumps(client_list)
-
     for socket in server_cl_connections:
         socket.send(msg)
     print("clientlist transfered to noleaders.")
@@ -415,6 +417,12 @@ def ring_formation():
     sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
     print(sorted_ip_ring)
     print("Ring formation done")
+    
+    if sorted_ip_ring[0] == server_ip:
+        leader = True
+        leader_ip = server_ip
+        print("bin jetzt leader")
+    
     get_neighbour(sorted_ip_ring, server_ip, "left")
 
     
