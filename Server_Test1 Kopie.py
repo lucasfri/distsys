@@ -364,7 +364,6 @@ def leader_noleader_cl_tcp():
             print("recieved clientlist", client_list)
 
 
-
 def leader_noleader_send_msg(msg):
 
     global server_msg_connections
@@ -629,4 +628,3 @@ if __name__ == "__main__":
         
         
 #Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
-
