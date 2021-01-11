@@ -6,6 +6,18 @@ from sys import platform as _platform
 
 
 
+def get_local_address():
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_address = s.getsockname()[0]
+        return local_address
+    finally:
+        if s:
+            s.close()
+            
+            
 
 #send udp broadcast and wait for answer from leader
 def udp():
@@ -143,7 +155,7 @@ def heartbeat():
 if __name__ == "__main__":
     
     broadcast_ip = "192.168.56.255"
-    client_ip = "192.168.56.102"
+    client_ip = get_local_address()
     udp_serverport = 1234
     tcp_serverport = 1235
     heartbeat_port = 1244

@@ -5,9 +5,7 @@ import time
 from sys import platform as _platform
 import pickle
 
-#from smtplib import server
 
-server_ip = "192.168.56.102"
 broadcast_ip = "192.168.56.255"
 discovery_port = 1236
 send_list_port = 1237
@@ -21,6 +19,21 @@ tcp_port = 1235
 server_com_port = 1238
 buffer = 1024
 
+
+
+def get_local_address():
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_address = s.getsockname()[0]
+        return local_address
+    finally:
+        if s:
+            s.close()
+            
+            
+            
 def service_announcement():
     
     global server_list
@@ -637,6 +650,7 @@ def messaging(client, client_address):
 
 if __name__ == "__main__":
     
+    server_ip = get_local_address()
     server_list = []
     client_list = []
     client_sockets = []
