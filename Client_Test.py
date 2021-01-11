@@ -7,8 +7,7 @@ from sys import platform as _platform
 
 
 
-# Dem Server zuhoeren und den Benutzernamen senden
-
+#send udp broadcast and wait for answer from leader
 def udp():
     
     global host_address
@@ -18,7 +17,7 @@ def udp():
     
     while len(host_address) == 0:
         try:    
-            udp_socket.sendto(str.encode("Hello Server"), (broadcast_ip, udp_serverport))
+            udp_socket.sendto(str.encode("Hello server."), (broadcast_ip, udp_serverport))
             print("Requesting blackboard entrance.")
             
             try: 
@@ -28,13 +27,15 @@ def udp():
                 
             except socket.timeout as e:continue
          
-        except: print("None")
+        except: print("")
           
     udp_socket.close()
     
     tcp()
     
 
+
+#Connect with lead server which was identified via udp()
 def tcp():
     
     global tcp_sockets
@@ -56,7 +57,7 @@ def tcp():
     
     
        
-    
+#receive messages from lead server
 def receive():
 
     global tcp_sockets
@@ -66,27 +67,21 @@ def receive():
         if stop_threads ==  True: break
         else:
             for element in tcp_sockets:
-                #try:
-                    # Receive Message From Server
-                    # If 'NICK' Send Nickname
                 message = element.recv(buffer).decode('ascii')
                 if message == 'NICK':
                     element.send(nickname.encode('ascii'))
                 else:
                     if len(message) != 0:
                         print(message)
-                #except:
-                    # Close Connection When Error
-                 #   print("Ein Fehler ist aufgetreten!")
-                  #  element.close()
-                   # break
+
             
             
 
-# Nachrichten zum Server senden
+# Send user input to lead server
 def send():
     global stop_threads
     global tcp_sockets
+    
     while True:
         if stop_threads ==  True: break
         else:
@@ -99,11 +94,13 @@ def send():
                 print("Connection to Leader lost. Please try again.")
                 stop_threads = True
                 time.sleep(3)
+                tcp_sockets = []
                 udp()
                 break
 
             
-        
+ 
+#send heartbeat pings to say i'm up and running       
 def heartbeat():   
 
     global host_address
@@ -141,6 +138,8 @@ def heartbeat():
     heartbeat_socket.close()
     
 
+
+
 if __name__ == "__main__":
     
     broadcast_ip = "192.168.56.255"
@@ -153,15 +152,11 @@ if __name__ == "__main__":
     stop_threads = False
     tcp_sockets = []
     nickname = ""
-#Start loop
 
-    nickname = input("Wie lautet ihr Benutzername? ")
+    nickname = input("Enter username:")
     
     udp()
 
-    
-    #source https://www.neuralnine.com/tcp-chat-in-python/
-    #source https://pymotw.com/2/socket/tcp.html
-    # Nutzernamen auswaehlen.
+
 
 

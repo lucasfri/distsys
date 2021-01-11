@@ -30,16 +30,14 @@ def service_announcement():
     #broadcast socket
     sa_broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sa_broadcast_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    #sa_broadcast_socket.setblocking(False)
     
-    #meine serverinformation an andere server schicken
+    #send my information to leader
     data = "%s:%s" % ("SA", server_ip)
     time.sleep(15)
     sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
     
-    # 3 Sekunden warten ob Antwort auf Broadcast kommt.
-
+    #wait for 10 seconds if leader responds
     sa_broadcast_socket.settimeout(10)
     try:
         print("listening for other servers responses...")
@@ -58,13 +56,9 @@ def service_announcement():
         leader_ip = server_ip
         server_list.append(server_ip)
         print("I am the first server and leader.")
-        print(server_list)
-        #Thread(target=client_discovery, args=()).start()
-        #Thread(target=server_discovery(server_list, server_msg_connections), args=(server_list, )).start()
-        
-    #Wenn Antwort kommt wird die Ringformation gestartet
-    else:
-            #TCP Socket fuer den Empfang der Serverliste
+        print("Server list: " + server_list)
+
+    else: #receive the server list from leader via tcp
         recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         recv_serverlist_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         recv_serverlist_socket.connect((leader_ip, send_list_port))
@@ -88,23 +82,21 @@ def server_discovery():
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     recv_sa_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    
-    #Bei Unix Systemen muss ein Broadcast empfangender UDP Socket an die Broadcastadresse gebunden werden, bei Windows an die lokale Adresse.
+    #set socket option depending on OS
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         recv_sa_socket.bind((broadcast_ip, discovery_port))
 
     elif _platform == "win32" or _platform == "win64":
         recv_sa_socket.bind((server_ip, discovery_port))
 
-    #empfange broadcast
+    #receive broadcast from new server
     print("listening for new servers")
     sa_message, sa_address = recv_sa_socket.recvfrom(buffer)
     print(sa_message, sa_address)
     
     recv_sa_socket.close()
 
-    #if sa_message[:2] == "SA":
-        #Adresse des neuen Servers zur Serverliste hinzufuegen
+    #append address of new server to server list
     print("server request received from server on IP {}".format(sa_message))
     located_server_ip = sa_message[3:]
     located_server_ip = located_server_ip.decode("UTF-8")
@@ -112,27 +104,23 @@ def server_discovery():
     print("server list:")
     print(server_list)
     
-    #eigene Adresse an neuen Leader senden
+    #send own address to new server
     send_leader_address_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     send_leader_address_socket.sendto(server_ip.encode("UTF-8"), sa_address)
     print("Own address sent to new server.")
     send_leader_address_socket.close()
     
-    #TCP connection aufbauen
+    #send server list to new server
     send_list_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
         send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
-
     send_list_socket.bind((server_ip, send_list_port))
     send_list_socket.listen()
     new_server,new_server_address = send_list_socket.accept()
     print("Connected to new server.")
 
-
-
-    #Serverliste an neuen Server übermitteln
     msg = pickle.dumps(server_list)
     new_server.send(msg)
     print("sent serverlist to new server")
@@ -140,6 +128,8 @@ def server_discovery():
     #Serverliste von Leader an alle Noleader
     leader_noleader_send_serverlist()
     
+    
+    #initiate tcp Threads
     Thread(target=leader_noleader_msg_tcp, args=()).start()
     time.sleep(0.1)
     Thread(target=leader_noleader_sl_tcp, args=()).start()
@@ -150,7 +140,7 @@ def server_discovery():
     time.sleep(0.1)    
     Thread(target=server_discovery(), args=()).start()
     
-    #ring_formation(server_list)
+    
 
 def server_heartbeat():
     
@@ -164,32 +154,23 @@ def server_heartbeat():
     heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
         heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-        
-    
+           
     if leader == True:
 
         heartbeat_socket.bind((leader_ip, heartbeat_port))
         heartbeat_socket.listen()
-        print("heartbeat_msg_socket erstellt")
-        
         noleader, noleader_address = heartbeat_socket.accept()
         print("Heartbeat socket connected")
-        
-        #heartbeat_connections.append(noleader)
 
-        noleader.send("Heartbeat started for me.".encode("UTF-8"))
+        noleader.send("Heartbeat started".encode("UTF-8"))
         
         check = noleader.recv(buffer)
         print(check)
 
-
-        #try:
         while True:
             ack = noleader.recv(buffer)
             if ack != check:
                 print("Old server_list: {}".format(server_list))
-                #index = server_list.index(noleader_address[0])
-                #get first element of tuple
                 noleader_ip = noleader_address[0]
                 server_list.remove(noleader_ip)
                 leader_noleader_send_serverlist()
@@ -197,21 +178,14 @@ def server_heartbeat():
                 break
             else:
                 print(ack)
-
-                   
-       
-        #except: #Sofern der Client keine Nachricht empfaeng
-         #   print("Except.")
-
+                
      
     else:
         time.sleep(1)
         heartbeat_socket.connect((leader_ip, heartbeat_port))
-        print("Heartbeat TCP connected.")
+        print("Heartbeat socket connected.")
         ack2 = heartbeat_socket.recv(buffer).decode("UTF-8")
         print(ack2)
-
-            #muss noch was passieren
             
         while True:
             try:
@@ -219,12 +193,12 @@ def server_heartbeat():
                 print("heartbeat sent to leader")
 
             except:
-                print("Connection to noleader lost")
+                print("Connection to leader lost")
                 server_list.remove(leader_ip)
-                ring_formation()
                 stop_threads = True
-                
+                ring_formation()
                 break
+            
             time.sleep(10)
             
         heartbeat_socket.close()
@@ -243,30 +217,21 @@ def client_heartbeat():
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
         client_heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
-
     client_heartbeat_socket.bind((leader_ip, client_heartbeat_port))
     client_heartbeat_socket.listen()
-    print("client heartbeat erstellt")
-    
-    
     client, client_address = client_heartbeat_socket.accept()
     print("client heartbeat socket connected")
-    
-    #heartbeat_connections.append(noleader)
 
-    client.send("Client heartbeat started for me.".encode("UTF-8"))
+    client.send("Client heartbeat started".encode("UTF-8"))
     
     check = client.recv(buffer)
     print(check)
 
 
-    #try:
     while True:
         ack = client.recv(buffer)
         if ack != check:
             print("Old client_list: {}".format(client_list))
-            #index = server_list.index(noleader_address[0])
-            #get first element of tuple
             client_ip = client_address[0]
             client_list.remove(client_ip)
             leader_noleader_send_clientlist()
@@ -275,7 +240,9 @@ def client_heartbeat():
             break
         else:
             print(ack)
-                   
+            
+    client_heartbeat_socket.close()       
+
 
 
 def leader_noleader_msg_tcp():
@@ -286,42 +253,30 @@ def leader_noleader_msg_tcp():
     global messages
     global stop_threads
     
+    
     server_msg_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
         server_msg_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
-    print(server_msg_connections)
     
     if leader == True:
 
         server_msg_socket.bind((leader_ip, server_msg_port))
         server_msg_socket.listen()
-        print("server_msg_socket erstellt")
-        
         noleader, noleader_address = server_msg_socket.accept()
         
         noleader_ip = noleader_address[0]
-       # import itertools
-        #"".join(itertools.takewhile(lambda x: x!=",", noleader_ip))
-        #print(noleader_address)
-        
-        #noleader_ip = "'" + noleader_address + "'"
-        
-        #server_tcp_connections.append(noleader)
         server_msg_connections.append(noleader)
-        print("MSG TCP server connections: {}".format(server_msg_connections))
-        
-        
-        #print("Connected with noleader {}".format(noleader))
-        print("Connected with noleader {}".format(noleader_address)) 
+        print("Messsage TCP server connections: {}".format(server_msg_connections))
+        print("Message transfer established with noleader {}".format(noleader_address)) 
         
           
      
     else:
         time.sleep(1)
         server_msg_socket.connect((leader_ip, server_msg_port))
-        print("Server msg tcp connected.")
+        print("Message transfer establsihed with leader")
                     
         while True:
             if stop_threads == True: break
@@ -334,8 +289,7 @@ def leader_noleader_msg_tcp():
 
         server_msg_socket.close()
 
-    
-    #return server_tcp_connections   
+
     
 def leader_noleader_sl_tcp():
     
@@ -355,24 +309,18 @@ def leader_noleader_sl_tcp():
 
         server_sl_socket.bind((leader_ip, server_sl_port))
         server_sl_socket.listen()
-        print("server_sl_socket erstellt")
-        
         noleader, noleader_address = server_sl_socket.accept()
-        
-        #server_tcp_connections.append(noleader)
+
         server_sl_connections.append(noleader)
-        print("SL TCP server connections: {}".format(server_sl_connections))
-        
-        
-        #print("Connected with noleader {}".format(noleader))
-        print("Connected with noleader {}".format(noleader_address)) 
+        print("Server list TCP connections: {}".format(server_sl_connections))
+        print("Serverlist transfer established with noleader {}".format(noleader_address)) 
     
       
  
     else:   
         time.sleep(1)    
         server_sl_socket.connect((leader_ip, server_sl_port))
-        print("Server sl tcp connected.")
+        print("server list transfer establsihed with leader.")
         
         while True:
             if stop_threads ==  True: break
@@ -380,10 +328,12 @@ def leader_noleader_sl_tcp():
                 last_sent_sl = server_sl_socket.recv(buffer)
                 try:
                     server_list = pickle.loads(last_sent_sl)
-                    print("received serverlist", server_list)
+                    print("received serverlist: ", server_list)
                 except: continue
             
         server_sl_socket.close()    
+        
+        
         
 def leader_noleader_cl_tcp():
     
@@ -404,25 +354,19 @@ def leader_noleader_cl_tcp():
     if leader == True:
 
         server_cl_socket.bind((leader_ip, server_cl_port))
-        server_cl_socket.listen()
-        print("server_cl_socket erstellt")
-        
+        server_cl_socket.listen()    
         noleader, noleader_address = server_cl_socket.accept()
         
-        #server_tcp_connections.append(noleader)
         server_cl_connections.append(noleader)
-        print("CL TCP server connections: {}".format(server_cl_connections))
-        
-        
-        #print("Connected with noleader {}".format(noleader))
-        print("Connected with noleader {}".format(noleader_address)) 
+        print("Client list TCP connections: {}".format(server_cl_connections))
+        print("Client list transfer established with noleader {}".format(noleader_address)) 
     
       
  
     else:   
         time.sleep(1)    
         server_cl_socket.connect((leader_ip, server_cl_port))
-        print("Server cl tcp connected.")
+        print("Client list transfer established with leader")
         
         while True:
             if stop_threads == True: 
@@ -431,10 +375,12 @@ def leader_noleader_cl_tcp():
                 last_sent_cl = server_cl_socket.recv(buffer)
                 try:
                     client_list = pickle.loads(last_sent_cl)
-                    print("recieved clientlist", client_list)
+                    print("Recieved clientlist: ", client_list)
                 except: continue
 
         server_cl_socket.close()
+        
+        
     
 def leader_noleader_send_msg(msg):
 
@@ -461,7 +407,7 @@ def leader_noleader_send_serverlist():
             socket.send(msg)
         except:
             continue
-    print("serverlist transfered to noleaders.")
+    print("server list transfered to noleaders.")
         
         
 def leader_noleader_send_clientlist():
@@ -475,21 +421,25 @@ def leader_noleader_send_clientlist():
         try:
             socket.send(msg)
         except: continue
-    print("clientlist transfered to noleaders.")
+    print("client list transfered to noleaders.")
 
         
         
 def ring_formation():
     
     global server_list
-    #threading.Timer(10.0, ring_formation).start()
+
     print("Ring formation started.") 
     sorted_binary_ring = sorted([socket.inet_aton(member) for member in server_list])
     sorted_ip_ring = [socket.inet_ntoa(node) for node in sorted_binary_ring]
+    
     print(sorted_ip_ring)
     print("Ring formation done")
-    get_neighbour(sorted_ip_ring, server_ip, "left")
+    
+    get_neighbour(sorted_ip_ring, "left")
     leader_election(sorted_ip_ring)
+    
+    
 
 def leader_election(sorted_ip_ring):
     global server_ip
@@ -501,7 +451,7 @@ def leader_election(sorted_ip_ring):
         leader_ip = server_ip
         server_list = []
         server_list.append(server_ip)
-        print("bin jetzt leader")
+        print("I am the new leader")
         
         Thread(target=client_discovery, args=()).start()
         Thread(target=server_discovery, args=()).start()
@@ -523,8 +473,10 @@ def leader_election(sorted_ip_ring):
 
         
 
-def get_neighbour(ring, own_ip, direction='left'):
-    own_ip_index = ring.index(own_ip) if own_ip in ring else -1 
+def get_neighbour(ring, direction='left'):
+    
+    global server_ip
+    own_ip_index = ring.index(server_ip) if server_ip in ring else -1 
     if own_ip_index != -1:
         if direction == 'left':
             if own_ip_index + 1 == len(ring):
@@ -548,6 +500,7 @@ def get_neighbour(ring, own_ip, direction='left'):
 
 
 def send_to_neighbour(message):
+    
     print("Send to neighbour")
     send_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     send_list_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -563,24 +516,13 @@ def send_to_neighbour(message):
 
     send_neighbour_socket.close()
     
-'''def send_server_list_to_neighbour(server_list):
-    print("Send server list to neighbour")
-    send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_server_list_neighbour_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    send_server_list_neighbour_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-
-    send_server_list_neighbour_socket.bind((server_ip, send_list_port))
-    send_server_list_neighbour_socket.listen()
-    send_server_list_neighbour_socket.accept()
     
-    #Serverliste von Leader an alle Noleader
-    msg = pickle.dumps(server_list)
-    print("Serverliste, die an alle noleader gesendet wird: ", msg)
-    send_server_list_neighbour_socket.send(msg)
-    print("sent serverlist to new server")
-    send_server_list_neighbour_socket.close()'''
 
-#Create UDP socket, listen for broadcast, transmit own address
+def recv_from_neighbour():
+    print("recv_from_neighbour")
+
+
+
 def client_discovery(): 
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -589,12 +531,10 @@ def client_discovery():
 
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         udp_socket.bind((broadcast_ip, udp_port))
-        # linux 
+        
     elif _platform == "win32" or _platform == "win64":
         udp_socket.bind((server_ip, udp_port))
-    
-    #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
     
     print("server up and running...")
     print("Waiting for client request...") 
@@ -608,7 +548,8 @@ def client_discovery():
     udp_socket2.bind((server_ip, udp_port))
     
     udp_socket2.sendto(str.encode(server_ip), client_address)
-    print("Establishing connection")
+    
+    #Initialising the TCP connections
     Thread(target=client_heartbeat, args=()).start()
     Thread(target=client_discovery, args=()).start()
     Thread(target=connect, args=()).start()
@@ -616,27 +557,25 @@ def client_discovery():
 
 
 def connect():
-    
+
     global client_list
-        #TCP connection  
+
+    print("Establishing TCP connection.")
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
         server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) 
     
-    #server_ip = socket.gethostbyname(socket.gethostname())
+    
     server_address = (server_ip, tcp_port)
     print('Server gestartet auf IP %s und Port %s' % server_address)
     server.bind(server_address)
     server.listen()
-    
-    
-    # Die Verbindung akzeptieren
     client,client_address = server.accept()
     print("Verbunden mit client {}".format(str(client_address)))
 
-    # Anforderung des Benutzernamens und Speicherung dessen
+    # Request Username
     client.send('NICK'.encode('ascii'))
     nickname = client.recv(1024).decode('ascii')
     client_ip = client_address[0]
@@ -645,30 +584,35 @@ def connect():
     leader_noleader_send_clientlist()
 
     # Benutzername mitteilen und broadcasten
-    print("Der Benutzername ist {}".format(nickname))
+    print("Username: {}".format(nickname))
     broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
     client.send('Mit dem Server verbunden!'.encode('ascii'))
     
+    
     blackboard_history_transfer(client)
-#Start Handling Thread For Client
     Thread(target=messaging(client, client_address), args=(client, client_address)).start()
+    
+    
 
 def blackboard_history_transfer(client):
     
     for message in messages:
             client.send(("\n" + message).encode("UTF-8"))
+    print("blackboard history transfered.")
             
             
-def broadcast(message): #um Nachrichten  zu den Clients zu senden
+            
+def broadcast(message):
     for client in client_sockets:
         try:
             (client).send(message)
         except:
             continue
+    print("message sent to all clients.")
 
 
 
-def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ein eigener handle aufgerufen in jedem einzelnen Thread
+def messaging(client, client_address):
     
     global client_list
     
@@ -678,12 +622,12 @@ def messaging(client, client_address): #Fuer jeden Client auf dem Server wird ei
             messages.append(message)
             print(message)
             leader_noleader_send_msg(message)
-            broadcast(message.encode("UTF-8")) #Wenn eine Nachricht angekommen ist, wird die Nachricht an die anderen Clients gebroadcastet
+            broadcast(message.encode("UTF-8"))
 
             Thread(target=messaging(client, client_address), args=(client, client_address)).start()
         
         else:
-            print("client_removed")
+            print("message transfer with client interrupted")
             
 
     except:
@@ -697,15 +641,13 @@ if __name__ == "__main__":
     client_list = []
     client_sockets = []
     messages = []
-    heartbeat_connections = []
     server_msg_connections = []
     server_sl_connections = []
     server_cl_connections = []
     neighbour = 0
     leader = False
     leader_ip = ""
-    variable = "Test"
-    last_sent_msg = "Welcome!"
+    last_sent_msg = "Message TCP"
     stop_threads = False
     
 
@@ -716,10 +658,8 @@ if __name__ == "__main__":
         Thread(target=client_discovery, args=()).start()
         Thread(target=server_discovery, args=()).start()
 
-        
     else:
         print("Nolead loop")
-        #ring_formation()
         Thread(target=leader_noleader_msg_tcp, args=()).start()  
         time.sleep(0.1)
         Thread(target=leader_noleader_sl_tcp, args=()).start()
@@ -728,12 +668,3 @@ if __name__ == "__main__":
         time.sleep(0.1)
         Thread(target=server_heartbeat, args=()).start()
 
-
-                
-    print(client_list)
-    print(messages)
-
-    time.sleep(60)
-        
-        
-#Auf Unix Endgeräten muss erster UDP socket an broadcast IP_binden und bei Windowsgeräten muss erster UDP socket an server_IP biden 
