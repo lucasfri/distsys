@@ -499,6 +499,8 @@ def leader_election(sorted_ip_ring):
     if sorted_ip_ring[0] == server_ip:
         leader = True
         leader_ip = server_ip
+        server_list = []
+        server_list.append(server_ip)
         print("bin jetzt leader")
         
         Thread(target=client_discovery, args=()).start()
@@ -517,7 +519,7 @@ def leader_election(sorted_ip_ring):
         time.sleep(0.1)
         Thread(target=leader_noleader_cl_tcp, args=()).start()
         time.sleep(0.1)
-        Thread(target=heartbeat, args=()).start()
+        Thread(target=server_heartbeat, args=()).start()
 
         
 

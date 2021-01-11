@@ -16,12 +16,16 @@ def udp():
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     
-    udp_socket.sendto(str.encode("Hello Server"), (broadcast_ip, udp_serverport))
-    print("Requesting blackboard entrance.")
-    
-    host_address = udp_socket.recv(buffer)
-    print("Hostaddress is {}".format(host_address))
-    
+    while len(host_address) == 0:
+        try:    
+            udp_socket.sendto(str.encode("Hello Server"), (broadcast_ip, udp_serverport))
+            print("Requesting blackboard entrance.")
+            
+            host_address = udp_socket.recv(buffer)
+            print("Hostaddress is {}".format(host_address))
+            time.sleep(5)
+        except: print("None")
+        
     udp_socket.close()
     
     tcp()
@@ -75,6 +79,7 @@ def receive():
 
 # Nachrichten zum Server senden
 def send():
+    global stop_threads
     while True:
         if stop_threads ==  True: break
         else:
@@ -116,6 +121,7 @@ def heartbeat():
 
         except:
             print("Connection to Leader lost")
+            host_address = ""
             stop_threads = True
             time.sleep(3)
             udp()
@@ -128,8 +134,8 @@ def heartbeat():
 
 if __name__ == "__main__":
     
-    broadcast_ip = "192.168.0.255"
-    client_ip = "192.168.0.220"
+    broadcast_ip = "192.168.56.255"
+    client_ip = "192.168.56.102"
     udp_serverport = 1234
     tcp_serverport = 1235
     heartbeat_port = 1244
