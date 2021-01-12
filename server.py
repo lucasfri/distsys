@@ -16,7 +16,6 @@ heartbeat_port = 1243
 client_heartbeat_port = 1244
 udp_port = 1234
 tcp_port = 1235 
-server_com_port = 1238
 buffer = 1024
 
 
