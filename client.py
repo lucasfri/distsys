@@ -1,70 +1,174 @@
 import socket
-#import threading
+from threading import Thread
+import pickle
+import time
+from sys import platform as _platform
 
-#source https://www.neuralnine.com/tcp-chat-in-python/
-#source https://pymotw.com/2/socket/tcp.html
-# Nutzernamen auswaehlen
-#nickname = input("Wie lautet ihr Benutzername? ")
 
-# Verbindung zum Server
-def broadcast(ip, port):
-    # Create a UDP socket
-    broadcast_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    # Send message on broadcast address
+
+def get_local_address():
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_address = s.getsockname()[0]
+        return local_address
+    finally:
+        if s:
+            s.close()
+            
+            
+
+#send udp broadcast and wait for answer from leader
+def udp():
+    
+    global host_address
+    
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    
+    while len(host_address) == 0:
+        try:    
+            udp_socket.sendto(str.encode("Hello server."), (broadcast_ip, udp_serverport))
+            print("Requesting blackboard entrance.")
+            
+            try: 
+                udp_socket.settimeout(10)
+                host_address = udp_socket.recv(buffer)
+                print("Hostaddress is {}".format(host_address))
+                
+            except socket.timeout as e:continue
+         
+        except: print("")
+          
+    udp_socket.close()
+    
+    tcp()
+    
+
+
+#Connect with lead server which was identified via udp()
+def tcp():
+    
+    global tcp_sockets
+    global nickname
+    
+    tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+    time.sleep(1)
+    tcp_socket.connect((host_address, tcp_serverport))
+    print("TCP connection with server on IP {} established.".format(host_address))
+    
+    tcp_sockets.append(tcp_socket)
+    
+    Thread(target=heartbeat, args=()).start()
+    time.sleep(2)
+    Thread(target=receive, args=()).start()
+    time.sleep(2)
+    Thread(target=send, args=()).start()
+    
+    
+       
+#receive messages from lead server
+def receive():
+
+    global tcp_sockets
+    global nickname
+    
     while True:
-        broadcast_socket.sendto(str.encode(MY_IP), (ip, port))
-        print("Sending ", str.encode(MY_IP))
-   # broadcast_socket.close()
-    
-#sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_address = (sys.argv[1], 10000)
-#print('Verbindung mit dem Blackboard auf %s mit Port %s herstellen' % server_address)
+        if stop_threads ==  True: break
+        else:
+            for element in tcp_sockets:
+                message = element.recv(buffer).decode('ascii')
+                if message == 'NICK':
+                    element.send(nickname.encode('ascii'))
+                else:
+                    if len(message) != 0:
+                        print(message)
 
-#sock.connect(server_address)
+            
+            
 
-# Dem Server zuhoeren und den Benutzernamen senden
-#def receive():
+# Send user input to lead server
+def send():
+    global stop_threads
+    global tcp_sockets
     
-   # while True:
-      #  try:
-            # Receive Message From Server
-            # If 'NICK' Send Nickname
-     #       message = broadcast_socket.recv(1024).decode('ascii')
-    #        if message == 'NICK':
-   #             broadcast_socket.send(nickname.encode('ascii'))
-  #          else:
- #               print(message)
-#        except:
-#            # Close Connection When Error
-#            print("Ein Fehler ist aufgetreten!")
-#            broadcast_socket.close()
-#            break
-#
+    while True:
+        if stop_threads ==  True: break
+        else:
+            try:
+                for element in tcp_sockets:
+                    print("Enter message:")
+                    message = '{}: {}'.format(nickname, input(''))
+                    element.send(message.encode('ascii'))
+            except:
+                print("Connection to Leader lost. Please try again.")
+                stop_threads = True
+                time.sleep(3)
+                tcp_sockets = []
+                udp()
+                break
+
+            
+ 
+#send heartbeat pings to say i'm up and running       
+def heartbeat():   
+
+    global host_address
+    global client_ip
+    global tcp_sockets
+    
+    heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if _platform == "linux" or _platform == "linux2" or _platform == "darwin":
+        heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         
-# Nachrichten zum Server senden
-#def write():
- #   while True:
-  #      message = '{}: {}'.format(nickname, input(''))
-   #     broadcast_socket.send(message.encode('ascii'))
+
+    time.sleep(1)
+    heartbeat_socket.connect((host_address, heartbeat_port))
+    print("Heartbeat TCP connected.")
+    ack2 = heartbeat_socket.recv(buffer).decode("UTF-8")
+    print(ack2)
         
-# 2 Threads fuer Zuhoeren und Nachrichten schreiben starten
-#receive_thread = threading.Thread(target=receive)
-#receive_thread.start()
+    while True:
+        try:
+            heartbeat_socket.send(client_ip.encode("UTF-8"))
+            print("heartbeat sent to leader")
 
-#write_thread = threading.Thread(target=write)
-#write_thread.start()
-
-
-if __name__ == '__main__':
-    # Broadcast address and port
-    BROADCAST_IP = "192.168.2.255"
-    BROADCAST_PORT = 5973
-
-    # Local host information
-    MY_HOST = socket.gethostname()
-    MY_IP = socket.gethostbyname(MY_HOST)
-    # Send broadcast message
-    broadcast(BROADCAST_IP, BROADCAST_PORT)
+        except:
+            print("Connection to Leader lost")
+            host_address = ""
+            for element in tcp_sockets:
+                element.close()
+            tcp_sockets = []
+            stop_threads = True
+            time.sleep(3)
+            udp()
+            break
+        time.sleep(10)
+        
+        
+    heartbeat_socket.close()
     
-#broadcast Tobi: 192.168.0.255
+
+
+
+if __name__ == "__main__":
+    
+    broadcast_ip = "192.168.0.255"
+    client_ip = get_local_address()
+    udp_serverport = 1234
+    tcp_serverport = 1235
+    heartbeat_port = 1244
+    buffer = 1024
+    host_address = ""
+    stop_threads = False
+    tcp_sockets = []
+    nickname = ""
+
+    nickname = input("Enter username:")
+    
+    udp()
 
