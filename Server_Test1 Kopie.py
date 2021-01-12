@@ -6,7 +6,7 @@ from sys import platform as _platform
 import pickle
 
 
-broadcast_ip = "192.168.56.255"
+broadcast_ip = "192.168.0.255"
 discovery_port = 1236
 send_list_port = 1237
 server_msg_port = 1239
@@ -46,7 +46,7 @@ def service_announcement():
     
     #send my information to leader
     data = "%s:%s" % ("SA", server_ip)
-    time.sleep(15)
+    time.sleep(5)
     sa_broadcast_socket.sendto(data.encode("UTF-8"), (broadcast_ip, discovery_port))
     print("Following was broadcasted: ", data)
     
@@ -69,7 +69,7 @@ def service_announcement():
         leader_ip = server_ip
         server_list.append(server_ip)
         print("I am the first server and leader.")
-        print("Server list: " + server_list)
+        print("Server list: ", server_list)
 
     else: #receive the server list from leader via tcp
         recv_serverlist_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -174,7 +174,8 @@ def server_heartbeat():
         heartbeat_socket.listen()
         noleader, noleader_address = heartbeat_socket.accept()
         print("Heartbeat socket connected")
-
+        
+        time.sleep(1)
         noleader.send("Heartbeat started".encode("UTF-8"))
         
         check = noleader.recv(buffer)
@@ -338,10 +339,12 @@ def leader_noleader_sl_tcp():
         while True:
             if stop_threads ==  True: break
             else:    
-                last_sent_sl = server_sl_socket.recv(buffer)
                 try:
-                    server_list = pickle.loads(last_sent_sl)
-                    print("received serverlist: ", server_list)
+                    last_sent_sl = server_sl_socket.recv(buffer)
+                    try:
+                        server_list = pickle.loads(last_sent_sl)
+                        print("received serverlist: ", server_list)
+                    except: continue
                 except: continue
             
         server_sl_socket.close()    
@@ -385,10 +388,12 @@ def leader_noleader_cl_tcp():
             if stop_threads == True: 
                 break
             else:
-                last_sent_cl = server_cl_socket.recv(buffer)
                 try:
-                    client_list = pickle.loads(last_sent_cl)
-                    print("Recieved clientlist: ", client_list)
+                    last_sent_cl = server_cl_socket.recv(buffer)
+                    try:
+                        client_list = pickle.loads(last_sent_cl)
+                        print("Recieved clientlist: ", client_list)
+                    except:continue
                 except: continue
 
         server_cl_socket.close()
@@ -574,19 +579,19 @@ def connect():
     global client_list
 
     print("Establishing TCP connection.")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    client_tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
     if _platform == "linux" or _platform == "linux2" or _platform == "darwin": 
-        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) 
+        client_tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1) 
     
     
     server_address = (server_ip, tcp_port)
-    print('Server gestartet auf IP %s und Port %s' % server_address)
-    server.bind(server_address)
-    server.listen()
-    client,client_address = server.accept()
-    print("Verbunden mit client {}".format(str(client_address)))
+    print('Server started on IP %s and port %s' % server_address)
+    client_tcp.bind(server_address)
+    client_tcp.listen()
+    client,client_address = client_tcp.accept()
+    print("Connected to client {}".format(str(client_address)))
 
     # Request Username
     client.send('NICK'.encode('ascii'))
@@ -598,8 +603,8 @@ def connect():
 
     # Benutzername mitteilen und broadcasten
     print("Username: {}".format(nickname))
-    broadcast("{} ist dem Blackboard beigetreten!".format(nickname).encode('ascii'))
-    client.send('Mit dem Server verbunden!'.encode('ascii'))
+    multicast("{} entered the blackboard!".format(nickname).encode('ascii'))
+    client.send('Connected to server!'.encode('ascii'))
     
     
     blackboard_history_transfer(client)
@@ -615,7 +620,7 @@ def blackboard_history_transfer(client):
             
             
             
-def broadcast(message):
+def multicast(message):
     for client in client_sockets:
         try:
             (client).send(message)
@@ -635,7 +640,7 @@ def messaging(client, client_address):
             messages.append(message)
             print(message)
             leader_noleader_send_msg(message)
-            broadcast(message.encode("UTF-8"))
+            multicast(message.encode("UTF-8"))
 
             Thread(target=messaging(client, client_address), args=(client, client_address)).start()
         

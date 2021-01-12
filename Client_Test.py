@@ -55,7 +55,8 @@ def tcp():
     
     tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    
+        
+    time.sleep(1)
     tcp_socket.connect((host_address, tcp_serverport))
     print("TCP connection with server on IP {} established.".format(host_address))
     
@@ -139,6 +140,8 @@ def heartbeat():
         except:
             print("Connection to Leader lost")
             host_address = ""
+            for element in tcp_sockets:
+                element.close()
             tcp_sockets = []
             stop_threads = True
             time.sleep(3)
@@ -154,7 +157,7 @@ def heartbeat():
 
 if __name__ == "__main__":
     
-    broadcast_ip = "192.168.56.255"
+    broadcast_ip = "192.168.0.255"
     client_ip = get_local_address()
     udp_serverport = 1234
     tcp_serverport = 1235
@@ -168,7 +171,4 @@ if __name__ == "__main__":
     nickname = input("Enter username:")
     
     udp()
-
-
-
 
