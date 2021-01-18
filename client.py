@@ -170,6 +170,3 @@ if __name__ == "__main__":
     udp()
 
 
-#heartbeat time.sleep
-#multicast -->
-# tcp_sockets zu Variable
